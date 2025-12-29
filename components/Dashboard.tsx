@@ -6,13 +6,16 @@ import { Badge } from "@/components/ui/badge"
 import { 
   Users, 
   Ticket, 
-  Calendar,
+  Package,
   TrendingUp,
   TrendingDown,
   Clock,
   CheckCircle,
   AlertTriangle,
-  XCircle
+  XCircle,
+  BarChart3,
+  Truck,
+  ShoppingCart
 } from "lucide-react"
 
 export function Dashboard() {
@@ -55,6 +58,29 @@ export function Dashboard() {
           <Card className="bg-white shadow-sm border-gray-200">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Stock Items</CardTitle>
+                <div className="p-2 bg-green-50 rounded-lg">
+                  <Package className="h-4 w-4 text-green-600" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-gray-900">1,247</span>
+                  <div className="flex items-center gap-1 text-green-600">
+                    <TrendingUp className="h-3 w-3" />
+                    <span className="text-sm font-medium">+8.2%</span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-500">items in inventory</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white shadow-sm border-gray-200">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Active Tickets</CardTitle>
                 <div className="p-2 bg-amber-50 rounded-lg">
                   <Ticket className="h-4 w-4 text-amber-600" />
@@ -79,8 +105,8 @@ export function Dashboard() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Present Today</CardTitle>
-                <div className="p-2 bg-green-50 rounded-lg">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <CheckCircle className="h-4 w-4 text-blue-600" />
                 </div>
               </div>
             </CardHeader>
@@ -94,29 +120,6 @@ export function Dashboard() {
                   </div>
                 </div>
                 <p className="text-sm text-gray-500">94.7% attendance</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white shadow-sm border-gray-200">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Avg Response Time</CardTitle>
-                <div className="p-2 bg-purple-50 rounded-lg">
-                  <Clock className="h-4 w-4 text-purple-600" />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-gray-900">2.4h</span>
-                  <div className="flex items-center gap-1 text-green-600">
-                    <TrendingDown className="h-3 w-3" />
-                    <span className="text-sm font-medium">-12%</span>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-500">faster than last week</p>
               </div>
             </CardContent>
           </Card>
@@ -171,49 +174,121 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Attendance Overview */}
+          {/* Stock Overview */}
           <Card className="bg-white shadow-sm border-gray-200">
             <CardHeader>
-              <CardTitle className="text-lg font-semibold text-gray-900">Today's Attendance</CardTitle>
+              <CardTitle className="text-lg font-semibold text-gray-900">Stock Overview</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-green-100 rounded-lg">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <Package className="h-4 w-4 text-green-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">Present</p>
-                    <p className="text-sm text-gray-500">On time arrivals</p>
+                    <p className="font-medium text-gray-900">Items In Stock</p>
+                    <p className="text-sm text-gray-500">Available inventory</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold text-green-700">234</span>
+                <span className="text-2xl font-bold text-green-700">1,189</span>
               </div>
               
               <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-amber-100 rounded-lg">
-                    <Clock className="h-4 w-4 text-amber-600" />
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">Late</p>
-                    <p className="text-sm text-gray-500">Late arrivals</p>
+                    <p className="font-medium text-gray-900">Low Stock Items</p>
+                    <p className="text-sm text-gray-500">Need restocking</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold text-amber-700">8</span>
+                <span className="text-2xl font-bold text-amber-700">23</span>
               </div>
               
-              <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-red-100 rounded-lg">
-                    <XCircle className="h-4 w-4 text-red-600" />
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Truck className="h-4 w-4 text-blue-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">Absent</p>
-                    <p className="text-sm text-gray-500">Not present today</p>
+                    <p className="font-medium text-gray-900">Pending Orders</p>
+                    <p className="text-sm text-gray-500">Orders in transit</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold text-red-700">5</span>
+                <span className="text-2xl font-bold text-blue-700">7</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Additional Metrics Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="bg-white shadow-sm border-gray-200">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Stock Value</CardTitle>
+                <div className="p-2 bg-purple-50 rounded-lg">
+                  <BarChart3 className="h-4 w-4 text-purple-600" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-gray-900">₹84.2L</span>
+                  <div className="flex items-center gap-1 text-green-600">
+                    <TrendingUp className="h-3 w-3" />
+                    <span className="text-sm font-medium">+12.5%</span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-500">total inventory value</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white shadow-sm border-gray-200">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Monthly Orders</CardTitle>
+                <div className="p-2 bg-green-50 rounded-lg">
+                  <ShoppingCart className="h-4 w-4 text-green-600" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-gray-900">156</span>
+                  <div className="flex items-center gap-1 text-green-600">
+                    <TrendingUp className="h-3 w-3" />
+                    <span className="text-sm font-medium">+18.3%</span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-500">orders this month</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white shadow-sm border-gray-200">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Avg Response Time</CardTitle>
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <Clock className="h-4 w-4 text-blue-600" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold text-gray-900">2.4h</span>
+                  <div className="flex items-center gap-1 text-green-600">
+                    <TrendingDown className="h-3 w-3" />
+                    <span className="text-sm font-medium">-12%</span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-500">faster than last week</p>
               </div>
             </CardContent>
           </Card>

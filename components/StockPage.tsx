@@ -40,8 +40,8 @@ const stockData = [
     currentStock: 245,
     minStock: 50,
     maxStock: 500,
-    unitPrice: 299.99,
-    totalValue: 73497.55,
+    unitPrice: 24999.00,
+    totalValue: 6124755.00,
     supplier: "TechSupply Co.",
     location: "Warehouse A - Shelf 12",
     status: "in_stock",
@@ -59,8 +59,8 @@ const stockData = [
     currentStock: 15,
     minStock: 25,
     maxStock: 100,
-    unitPrice: 89.50,
-    totalValue: 1342.50,
+    unitPrice: 7450.00,
+    totalValue: 111750.00,
     supplier: "Cable Solutions Ltd",
     location: "Warehouse B - Section 3",
     status: "low_stock",
@@ -78,7 +78,7 @@ const stockData = [
     currentStock: 0,
     minStock: 10,
     maxStock: 50,
-    unitPrice: 450.00,
+    unitPrice: 37500.00,
     totalValue: 0,
     supplier: "Network Pro Inc",
     location: "Warehouse A - Shelf 8",
@@ -97,8 +97,8 @@ const stockData = [
     currentStock: 180,
     minStock: 30,
     maxStock: 200,
-    unitPrice: 45.99,
-    totalValue: 8278.20,
+    unitPrice: 3825.00,
+    totalValue: 688500.00,
     supplier: "ElectroSupply Corp",
     location: "Warehouse C - Bin 15",
     status: "in_stock",
@@ -116,8 +116,8 @@ const stockData = [
     currentStock: 320,
     minStock: 100,
     maxStock: 500,
-    unitPrice: 12.50,
-    totalValue: 4000.00,
+    unitPrice: 1040.00,
+    totalValue: 332800.00,
     supplier: "Hardware Plus",
     location: "Warehouse A - Shelf 20",
     status: "in_stock",
@@ -135,8 +135,8 @@ const stockData = [
     currentStock: 8,
     minStock: 20,
     maxStock: 80,
-    unitPrice: 35.75,
-    totalValue: 286.00,
+    unitPrice: 2975.00,
+    totalValue: 23800.00,
     supplier: "Cable Solutions Ltd",
     location: "Warehouse B - Section 2",
     status: "low_stock",
@@ -154,8 +154,8 @@ const stockData = [
     currentStock: 95,
     minStock: 20,
     maxStock: 150,
-    unitPrice: 125.00,
-    totalValue: 11875.00,
+    unitPrice: 10400.00,
+    totalValue: 988000.00,
     supplier: "Storage Solutions Inc",
     location: "Warehouse C - Secure Area",
     status: "in_stock",
@@ -173,8 +173,8 @@ const stockData = [
     currentStock: 45,
     minStock: 15,
     maxStock: 100,
-    unitPrice: 18.99,
-    totalValue: 854.55,
+    unitPrice: 1580.00,
+    totalValue: 71100.00,
     supplier: "Maintenance Supplies Co",
     location: "Warehouse A - Shelf 5",
     status: "in_stock",
@@ -219,9 +219,9 @@ const getStatusBadge = (status: string) => {
 }
 
 const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'USD'
+    currency: 'INR'
   }).format(amount)
 }
 
@@ -468,7 +468,7 @@ export function StockPage() {
                   <TableCell className="py-4 px-6">
                     <div className="flex items-center gap-4">
                       <div className="relative">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+                        <div className="w-12 h-12 bg-linear-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-semibold text-sm shadow-sm">
                           <Package className="h-6 w-6" />
                         </div>
                         {getStatusIcon(item.status) && (
