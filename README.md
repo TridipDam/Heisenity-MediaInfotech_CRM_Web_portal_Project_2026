@@ -2,6 +2,18 @@
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Features
+
+### QR Code Scanner
+- **Location**: Dashboard top-right corner
+- **Purpose**: Scan product QR codes for inventory management
+- **Features**:
+  - Camera access for real-time scanning
+  - Product information display after scanning
+  - Stock level indicators
+  - Simulated scanning for demo purposes
+  - Clean, non-intrusive UI integration
+
 ## Getting Started
 
 First, run the development server:

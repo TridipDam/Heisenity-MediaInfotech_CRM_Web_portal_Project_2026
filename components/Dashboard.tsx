@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { QRScanner } from "@/components/QRScanner"
 import { 
   Users, 
   Ticket, 
@@ -19,14 +20,35 @@ import {
 } from "lucide-react"
 
 export function Dashboard() {
+  const [lastScannedProduct, setLastScannedProduct] = React.useState<string | null>(null)
+
+  const handleProductScan = (productId: string) => {
+    setLastScannedProduct(productId)
+    // Auto-hide notification after 5 seconds
+    setTimeout(() => setLastScannedProduct(null), 5000)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50/30">
+      {/* Scan notification */}
+      {lastScannedProduct && (
+        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-top-2">
+          <Package className="h-4 w-4" />
+          <span className="text-sm font-medium">Product {lastScannedProduct} scanned!</span>
+        </div>
+      )}
+      
       <div className="p-8 space-y-8">
         {/* Header */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600">Welcome back! Here's what's happening in your organization.</p>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+              <p className="text-gray-600">Welcome back! Here's what's happening in your organization.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <QRScanner onScan={handleProductScan} />
+            </div>
           </div>
         </div>
 
