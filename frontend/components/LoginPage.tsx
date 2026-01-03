@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Eye, 
   ShieldCheck, 
@@ -12,7 +12,6 @@ import {
   ArrowLeft,
   Mail,
   Lock,
-  User,
   Building2,
   CheckCircle2
 } from "lucide-react"
@@ -107,10 +106,10 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
           </Button>
           
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="w-10 h-10 bg-linear-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-linear-to-br bg-blue-500 rounded-lg flex items-center justify-center">
               <Eye className="h-5 w-5 text-white" />
             </div>
-            <span className="text-2xl font-bold text-slate-900">VisionLink Pro</span>
+            <span className="text-2xl font-bold text-slate-900">Mediacomputer</span>
           </div>
           
           <h1 className="text-4xl font-black text-slate-900 mb-2">
@@ -264,7 +263,7 @@ export default function LoginPage({ onBack, onLogin, initialTab = "user" }: Logi
         {/* Footer */}
         <div className="text-center mt-8 text-sm text-slate-500">
           <p>Need help? Contact our support team at support@visionlink.pro</p>
-          <p className="mt-1">&copy; 2024 VisionLink Pro. All rights reserved.</p>
+          <p className="mt-1">&copy; 2026 Mediacomputer. All rights reserved.</p>
         </div>
       </div>
     </div>

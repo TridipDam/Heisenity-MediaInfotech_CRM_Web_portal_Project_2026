@@ -19,8 +19,9 @@ const geistMono = Geist_Mono({
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isAuthPage = pathname === '/landing' || pathname === '/login'
+  const isEmployeePage = pathname === '/employee-attendance'
 
-  if (isAuthPage) {
+  if (isAuthPage || isEmployeePage) {
     return <div className="min-h-screen">{children}</div>
   }
 

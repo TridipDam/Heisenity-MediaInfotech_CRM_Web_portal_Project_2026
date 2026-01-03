@@ -8,15 +8,12 @@ import { Input } from "@/components/ui/input"
 import { 
   Camera, 
   MapPin, 
-  Clock, 
   CheckCircle, 
   XCircle,
   Wifi,
   Monitor,
   User,
-  Calendar,
   Building,
-  Smartphone
 } from "lucide-react"
 
 interface EmployeeSelfAttendanceProps {
