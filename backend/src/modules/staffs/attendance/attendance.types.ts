@@ -12,3 +12,19 @@ export interface AttendanceRecord {
   photo?: string
   status: AttendanceStatus
 }
+
+export interface LocationData {
+  address: string
+  city: string
+  state: string
+}
+
+export interface GeolocationCoordinates {
+  latitude: number
+  longitude: number
+}
+
+export interface GeolocationCoordinates {
+  latitude: number
+  longitude: number
+}

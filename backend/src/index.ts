@@ -1,28 +1,27 @@
-import express, { Request, Response } from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import dotenv from 'dotenv';
-import apiRoutes from './routes';
-import swagger from './swagger/swagger';
+import express, { Request, Response } from 'express'
+import cors from 'cors'
+import helmet from 'helmet'
+import dotenv from 'dotenv'
+import apiRoutes from './routes'
+import swagger from './swagger/swagger'
 
 // Load environment variables
-dotenv.config();
+dotenv.config()
 
-const app = express();
-const PORT = process.env.PORT || 3001;
+const app = express()
+const PORT = process.env.PORT || 3001
 
-// Middleware
-app.use(helmet());
+// Middleware 
+app.use(helmet())
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
-}));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+}))
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
 
-// Routes
-app.use('/api/v1', apiRoutes);
-app.use('/api/v1/api-docs', swagger);
+// Enable default query string parsing
+app.set('query parser', 'extended')
 
 // Root endpoint
 app.get('/', (_req: Request, res: Response) => {
@@ -32,16 +31,39 @@ app.get('/', (_req: Request, res: Response) => {
     endpoints: {
       health: '/api/v1/health',
       test: '/api/v1/test',
-      attendance: '/api/v1/attendance',
-      deviceInfo: '/api/v1/attendance/device',
+      staff_attendance: '/api/v1/attendance',
+      staff_location: '/api/v1/attendance/location',
+      staff_deviceInfo: '/api/v1/attendance/device',
       apiDocs: '/api/v1/api-docs'
     }
-  });
-});
+  })
+})
+
+// Routes
+app.use('/api/v1', apiRoutes)
+app.use('/api/v1/api-docs', swagger)
+
+// Error handling middleware
+app.use((err: any, _req: Request, res: Response, next: express.NextFunction) => {
+  console.error('Error:', err)
+  res.status(err.status || 500).json({
+    success: false,
+    error: err.message || 'Internal server error'
+  })
+})
+
+// 404 handler (must be last)
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    error: 'Route not found',
+    hint: 'Visit / or /api/v1 for available endpoints'
+  })
+})
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Backend server running on port ${PORT}`);
-});
+  console.log(`🚀 Backend server running on port ${PORT}`)
+})
 
-export default app;
+export default app

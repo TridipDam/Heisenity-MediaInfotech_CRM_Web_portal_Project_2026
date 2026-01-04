@@ -15,32 +15,72 @@ import {
   Building,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import { DeviceInfo } from "@/lib/server-api"
+import { DeviceInfo, LocationInfo } from "@/lib/server-api"
 
 interface EmployeeSelfAttendanceProps {
   onAttendanceMarked?: (data: AttendanceData) => void
   deviceInfo?: DeviceInfo
+  locationInfo?: LocationInfo | null
 }
 
 interface AttendanceData {
   employeeId: string
   timestamp: string
   location?: string
+  locationInfo?: LocationInfo
   ipAddress?: string
   deviceInfo?: DeviceInfo
   photo?: string
   status: 'check-in' | 'check-out'
 }
 
-export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo }: EmployeeSelfAttendanceProps) {
+export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locationInfo }: EmployeeSelfAttendanceProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [cameraActive, setCameraActive] = useState(false)
   const [attendanceMarked, setAttendanceMarked] = useState(false)
   const [employeeId, setEmployeeId] = useState("")
   const [currentTime, setCurrentTime] = useState(new Date())
   const [ipAddress, setIpAddress] = useState<string>("")
+  const [userLocationInfo, setUserLocationInfo] = useState<LocationInfo | null>(null)
+  const [locationLoading, setLocationLoading] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+
+  // Get user's current location
+  const getUserLocation = async () => {
+    setLocationLoading(true)
+    try {
+      // Get user's GPS coordinates
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('Geolocation not supported'))
+          return
+        }
+        
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000
+        })
+      })
+
+      const { latitude, longitude } = position.coords
+      
+      // Call backend API to get location info
+      const response = await fetch(`/api/location?latitude=${latitude}&longitude=${longitude}`)
+      if (response.ok) {
+        const locationData = await response.json()
+        setUserLocationInfo(locationData)
+      }
+    } catch (error) {
+      console.error('Error getting location:', error)
+    } finally {
+      setLocationLoading(false)
+    }
+  }
+
+  // Debug logging
+  console.log('EmployeeSelfAttendance props:', { deviceInfo, locationInfo })
 
   // Update time every second
   useEffect(() => {
@@ -50,7 +90,7 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo }: Emplo
     return () => clearInterval(timer)
   }, [])
 
-  // Fetch IP address only
+  // Fetch IP address and get user location
   useEffect(() => {
     const fetchIpAddress = async () => {
       try {
@@ -112,7 +152,8 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo }: Emplo
       const attendanceData: AttendanceData = {
         employeeId: employeeId.trim(),
         timestamp: currentTime.toISOString(),
-        location: 'Office Location', // This could come from backend or be configured
+        location: locationInfo?.humanReadableLocation || 'Location unavailable',
+        locationInfo: locationInfo || undefined,
         ipAddress: ipAddress,
         deviceInfo: deviceInfo || undefined,
         status: type
@@ -261,7 +302,7 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo }: Emplo
                   <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
                     <h4 className="font-semibold text-gray-900 flex items-center gap-2">
                       <MapPin className="h-4 w-4" />
-                      Device Information
+                      Location & Device Information
                     </h4>
                     <div className="space-y-3 text-sm">
                       <div className="flex items-center justify-between">
@@ -271,19 +312,45 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo }: Emplo
                         </span>
                         <Badge variant="secondary">{ipAddress || 'Loading...'}</Badge>
                       </div>
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-start justify-between">
                         <span className="text-gray-600 flex items-center gap-2">
                           <Building className="h-4 w-4" />
                           Location:
                         </span>
-                        <span className="font-medium">Office Location</span>
+                        <div className="text-right max-w-xs">
+                          {/* User's current location only */}
+                          {userLocationInfo ? (
+                            <div className="space-y-1">
+                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700">Current Location</Badge>
+                              <div className="font-medium text-xs">
+                                {userLocationInfo.location.city}, {userLocationInfo.location.state}
+                              </div>
+                              <div className="text-xs text-gray-500 wrap-break-word">
+                                {userLocationInfo.location.address}
+                              </div>
+                              <Badge variant="outline" className="text-xs">
+                                {userLocationInfo.coordinates.latitude.toFixed(4)}, {userLocationInfo.coordinates.longitude.toFixed(4)}
+                              </Badge>
+                            </div>
+                          ) : (
+                            <Button 
+                              onClick={getUserLocation} 
+                              disabled={locationLoading}
+                              size="sm" 
+                              variant="outline" 
+                              className="text-xs"
+                            >
+                              {locationLoading ? 'Getting location...' : 'Get My Location'}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-600 flex items-center gap-2">
                           <Monitor className="h-4 w-4" />
                           Device:
                         </span>
-                        <span className="font-medium">
+                        <span className="font-medium text-xs">
                           {deviceInfo ? `${deviceInfo.device} - ${deviceInfo.browser} on ${deviceInfo.os}` : 'Loading...'}
                         </span>
                       </div>
