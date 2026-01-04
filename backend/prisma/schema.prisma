@@ -5,10 +5,66 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "mysql"
 }
+
+// Attendance Status enum
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  ON_LEAVE
+  HOLIDAY
+  WEEKEND
+}
+
+// Staff/Employee model
+model Staff {
+  id          String   @id @default(cuid())
+  employeeId  String   @unique
+  firstName   String
+  lastName    String
+  email       String   @unique
+  phone       String?
+  department  String
+  position    String
+  hireDate    DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  attendances   Attendance[]
+
+  @@map("staffs")
+}
+
+// Attendance model
+model Attendance {
+  id          String           @id @default(cuid())
+  staffId     String
+  date        DateTime         @db.Date
+  clockIn     DateTime?
+  clockOut    DateTime?
+  breakStart  DateTime?
+  breakEnd    DateTime?
+  status      AttendanceStatus @default(PRESENT)
+  notes       String?          @db.Text
+  location    String?          // GPS location or office location
+  ipAddress   String?          // For tracking remote work
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  staff       Staff            @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, date])
+  @@map("attendances")
+}
+
