@@ -18,7 +18,7 @@ export const createAttendance = async (req: Request, res: Response) => {
     }
 
     // Get IP address and user agent
-    const ipAddress = req.ip || req.connection.remoteAddress || 'unknown'
+    const ipAddress = req.ip || req.connection.remoteAddress || 'unknown' 
     const userAgent = req.headers['user-agent'] || ''
 
     // Prepare coordinates if provided
@@ -38,15 +38,36 @@ export const createAttendance = async (req: Request, res: Response) => {
       coordinates = { latitude: lat, longitude: lng }
     }
 
-    // Create attendance record
-    const attendance = await createAttendanceRecord({
-      employeeId,
-      coordinates,
-      ipAddress,
-      userAgent,
-      photo,
-      status: status as 'PRESENT' | 'LATE'
-    })
+    console.log('Creating attendance record for employee:', employeeId)
+
+    // Create attendance record with retry logic
+    let attendance
+    let retryCount = 0
+    const maxRetries = 3
+
+    while (retryCount < maxRetries) {
+      try {
+        attendance = await createAttendanceRecord({
+          employeeId,
+          coordinates,
+          ipAddress,
+          userAgent,
+          photo,
+          status: status as 'PRESENT' | 'LATE'
+        })
+        break // Success, exit retry loop
+      } catch (error) {
+        retryCount++
+        console.error(`Attempt ${retryCount} failed:`, error)
+        
+        if (retryCount >= maxRetries) {
+          throw error // Re-throw after max retries
+        }
+        
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount))
+      }
+    }
 
     return res.status(201).json({
       success: true,
@@ -55,9 +76,22 @@ export const createAttendance = async (req: Request, res: Response) => {
     })
   } catch (error) {
     console.error('Error creating attendance:', error)
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to create attendance record'
+    if (error instanceof Error) {
+      if (error.message.includes('pool timeout')) {
+        errorMessage = 'Database connection timeout. Please try again in a moment.'
+      } else if (error.message.includes('not found')) {
+        errorMessage = 'Employee ID not found. Please check your employee ID.'
+      } else {
+        errorMessage = error.message
+      }
+    }
+    
     return res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to create attendance record'
+      error: errorMessage
     })
   }
 }

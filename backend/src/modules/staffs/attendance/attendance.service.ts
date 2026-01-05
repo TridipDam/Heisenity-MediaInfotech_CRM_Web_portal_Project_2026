@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 import { AttendanceRecord, LocationData, GeolocationCoordinates } from "./attendance.types";
 import { getHumanReadableLocation, getLocationFromCoordinates } from "@/utils/geolocation";
 import { getDeviceInfo } from "@/utils/deviceinfo";

@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -10,58 +7,32 @@ datasource db {
   provider = "mysql"
 }
 
-// User role type enum
-enum UserRole {
-  ADMIN
-  STAFF
-}
-
-// Attendance Status enum
-enum AttendanceStatus {
-  PRESENT
-  ABSENT
-  LATE
-  REJECTED
-}
-
-// Attempt count enum
-enum AttemptCount {
-  ZERO
-  ONE
-  TWO
-  THREE
-}
-
-// User model
 model User {
-  id         String   @id @default(cuid())
-  name       String
-  role       UserRole @default(STAFF)
-  employeeId String   @unique
-  email      String   @unique
-  phone      String?
-  teamId     String?
-  status     String   @default("ACTIVE")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  // Relations
-  attendances           Attendance[]
-  dailyLocations        DailyLocation[]
-  attendanceOverrides   AttendanceOverride[] @relation("UserAttendanceOverrides")
-  adminOverrides        AttendanceOverride[] @relation("AdminAttendanceOverrides")
+  id                  String               @id @default(cuid())
+  name                String
+  role                UserRole             @default(STAFF)
+  employeeId          String               @unique
+  email               String               @unique
+  phone               String?
+  teamId              String?
+  status              String               @default("ACTIVE")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  adminOverrides      AttendanceOverride[] @relation("AdminAttendanceOverrides")
+  attendanceOverrides AttendanceOverride[] @relation("UserAttendanceOverrides")
+  attendances         Attendance[]
+  dailyLocations      DailyLocation[]
 
   @@map("users")
 }
 
-// Daily location assignments for geofencing
 model DailyLocation {
   id         String   @id @default(cuid())
   userId     String
   date       DateTime @db.Date
   latitude   Decimal  @db.Decimal(10, 8)
   longitude  Decimal  @db.Decimal(11, 8)
-  radius     Int      @default(100) // meters
+  radius     Int      @default(100)
   address    String?
   city       String?
   state      String?
@@ -70,42 +41,30 @@ model DailyLocation {
   assignedBy String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@map("daily_locations")
 }
 
-// Attendance records with location tracking
 model Attendance {
-  id               String           @id @default(cuid())
-  userId           String
-  date             DateTime         @db.Date
-  clockIn          DateTime?
-  
-  // Location data
-  latitude         Decimal?         @db.Decimal(10, 8)
-  longitude        Decimal?         @db.Decimal(11, 8)
-  location         String?          // Human-readable location
-  
-  // Device and network info
-  ipAddress        String?
-  deviceInfo       String?          // Browser, OS, Device type
-  photo            String?          // Base64 or file path
-  
-  // Status and validation
-  status           AttendanceStatus @default(PRESENT)
-  attemptCount     AttemptCount     @default(ZERO)
-  locked           Boolean @default(false)
-  lockedReason     String   @db.Text
-
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String           @id @default(cuid())
+  date         DateTime         @db.Date
+  clockIn      DateTime?
+  status       AttendanceStatus @default(PRESENT)
+  location     String?
+  ipAddress    String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  attemptCount AttemptCount     @default(ZERO)
+  deviceInfo   String?
+  latitude     Decimal?         @db.Decimal(10, 8)
+  locked       Boolean          @default(false)
+  lockedReason String           @db.Text
+  longitude    Decimal?         @db.Decimal(11, 8)
+  photo        String?
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@index([date])
@@ -113,23 +72,39 @@ model Attendance {
   @@map("attendances")
 }
 
-// Attendance overrides for admin corrections
 model AttendanceOverride {
   id        String           @id @default(cuid())
-  userId    String           // Foreign key field (String)
+  userId    String
   date      DateTime         @db.Date
-  adminId   String           // Foreign key field (String)
+  adminId   String
   oldStatus AttendanceStatus
   newStatus AttendanceStatus
   reason    String           @db.Text
   timestamp DateTime         @default(now())
-
-  // Relations (User objects)
-  user  User @relation("UserAttendanceOverrides", fields: [userId], references: [id], onDelete: Cascade)
-  admin User @relation("AdminAttendanceOverrides", fields: [adminId], references: [id], onDelete: Cascade)
+  admin     User             @relation("AdminAttendanceOverrides", fields: [adminId], references: [id], onDelete: Cascade)
+  user      User             @relation("UserAttendanceOverrides", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([adminId])
   @@index([date])
   @@map("attendance_overrides")
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  REJECTED
+}
+
+enum AttemptCount {
+  ZERO
+  ONE
+  TWO
+  THREE
 }
