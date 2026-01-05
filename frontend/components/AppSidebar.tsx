@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useSession, signOut } from "next-auth/react"
 import {
     Sidebar,
     SidebarContent,
@@ -33,7 +34,7 @@ import { Separator } from "@/components/ui/separator"
 const navigationItems = [
     {
         title: "Dashboard",
-        url: "/",
+        url: "/dashboard",
         icon: LayoutDashboard,
         badge: null,
         description: "Overview and analytics"
@@ -70,6 +71,48 @@ const navigationItems = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     const pathname = usePathname()
+    const { data: session } = useSession()
+
+    // Filter navigation items based on user type
+    const getFilteredNavigationItems = () => {
+        if (!session?.user) return navigationItems
+
+        const userType = (session.user as any).userType
+        
+        if (userType === 'employee') {
+            // Employees can only see Attendance
+            return navigationItems.filter(item => 
+                item.url === '/attendance'
+            )
+        }
+        
+        // Admins see all items
+        return navigationItems
+    }
+
+    const filteredNavigationItems = getFilteredNavigationItems()
+
+    // Get user initials
+    const getUserInitials = (name: string) => {
+        return name
+            .split(' ')
+            .map(word => word.charAt(0))
+            .join('')
+            .toUpperCase()
+            .slice(0, 2)
+    }
+
+    const handleLogout = () => {
+        console.log('Logout clicked')
+        signOut({ 
+            callbackUrl: '/login',
+            redirect: true 
+        }).then(() => {
+            console.log('Logout successful')
+        }).catch((error) => {
+            console.error('Logout error:', error)
+        })
+    }
 
     return (
         <Sidebar {...props} className="border-r border-border bg-background">
@@ -95,7 +138,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     </SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu className="space-y-1">
-                            {navigationItems.map((item) => {
+                            {filteredNavigationItems.map((item) => {
                                 const isActive = pathname === item.url
                                 return (
                                     <SidebarMenuItem key={item.title}>
@@ -148,18 +191,46 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
             {/* User Profile Footer */}
             <SidebarFooter className="border-t border-border p-4">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted hover:bg-accent transition-colors cursor-pointer">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-br from-gray-600 to-gray-700 text-white font-semibold text-sm">
-                        JD
+                {session?.user ? (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted hover:bg-accent transition-colors">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-br from-gray-600 to-gray-700 text-white font-semibold text-sm">
+                            {getUserInitials(session.user.name || 'User')}
+                        </div>
+                        <div className="flex flex-col flex-1 min-w-0">
+                            <span className="font-semibold text-sm text-foreground truncate">
+                                {session.user.name}
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground truncate">
+                                    {(session.user as any).userType === 'admin' ? 'Administrator' : 'Employee'}
+                                </span>
+                                {((session.user as any).employeeId || (session.user as any).adminId) && (
+                                    <Badge variant="outline" className="text-xs px-1.5 py-0.5">
+                                        ID: {(session.user as any).employeeId || (session.user as any).adminId}
+                                    </Badge>
+                                )}
+                            </div>
+                        </div>
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                            onClick={handleLogout}
+                        >
+                            <LogOut className="h-4 w-4" />
+                        </Button>
                     </div>
-                    <div className="flex flex-col flex-1 min-w-0">
-                        <span className="font-semibold text-sm text-foreground truncate">John Doe</span>
-                        <span className="text-xs text-muted-foreground truncate">Administrator</span>
+                ) : (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-300">
+                            <span className="text-gray-600 text-sm">?</span>
+                        </div>
+                        <div className="flex flex-col flex-1 min-w-0">
+                            <span className="font-semibold text-sm text-foreground">Not logged in</span>
+                            <span className="text-xs text-muted-foreground">Please sign in</span>
+                        </div>
                     </div>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
-                        <LogOut className="h-4 w-4" />
-                    </Button>
-                </div>
+                )}
             </SidebarFooter>
 
             <SidebarRail />

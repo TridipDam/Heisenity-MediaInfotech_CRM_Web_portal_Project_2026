@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useSession } from "next-auth/react"
 import { 
   Camera, 
   MapPin, 
@@ -29,6 +30,14 @@ import {
   AssignedLocationResponse 
 } from "@/lib/server-api"
 
+interface CustomUser {
+  id: string
+  email: string
+  name: string
+  userType: string
+  employeeId?: string
+}
+
 interface EmployeeSelfAttendanceProps {
   onAttendanceMarked?: (data: AttendanceData) => void
   deviceInfo?: DeviceInfo
@@ -47,6 +56,7 @@ interface AttendanceData {
 }
 
 export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locationInfo }: EmployeeSelfAttendanceProps) {
+  const { data: session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [cameraActive, setCameraActive] = useState(false)
   const [attendanceMarked, setAttendanceMarked] = useState(false)
@@ -61,6 +71,16 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
   const [locationError, setLocationError] = useState<string>("")
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+
+  // Auto-fill employee ID from session
+  useEffect(() => {
+    if (session?.user) {
+      const user = session.user as CustomUser
+      if (user.userType === 'employee' && user.employeeId) {
+        setEmployeeId(user.employeeId)
+      }
+    }
+  }, [session])
 
   // Get user's current location
   const getUserLocation = async () => {
@@ -317,6 +337,18 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-black text-gray-900">Employee Attendance</h1>
           <p className="text-xl text-gray-600">Mark your attendance with photo and location verification</p>
+          {session?.user && (
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <Badge variant="outline" className="text-sm px-3 py-1">
+                Welcome, {session.user.name}
+              </Badge>
+              {(session.user as CustomUser).employeeId && (
+                <Badge variant="secondary" className="text-sm px-3 py-1">
+                  ID: {(session.user as CustomUser).employeeId}
+                </Badge>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Time Display */}
@@ -460,17 +492,6 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
             <CardContent className="space-y-6">
               {!attendanceMarked ? (
                 <>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Employee ID</label>
-                    <Input
-                      placeholder="Enter your Employee ID"
-                      value={employeeId}
-                      onChange={(e) => setEmployeeId(e.target.value)}
-                      className="text-lg"
-                      disabled={isLocked}
-                    />
-                  </div>
-
                   {/* Location Info */}
                   <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
                     <h4 className="font-semibold text-gray-900 flex items-center gap-2">
@@ -610,33 +631,26 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
         {/* Instructions */}
         <Card className="bg-white/80 backdrop-blur-sm border border-gray-200 shadow-lg">
           <CardContent className="p-6">
-            <div className="grid md:grid-cols-4 gap-6 text-center">
-              <div className="space-y-2">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
-                  <User className="h-6 w-6 text-blue-600" />
-                </div>
-                <h4 className="font-semibold text-gray-900">1. Enter ID</h4>
-                <p className="text-sm text-gray-600">Enter your employee ID to check location assignment</p>
-              </div>
+            <div className="grid md:grid-cols-3 gap-6 text-center">
               <div className="space-y-2">
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
                   <MapPin className="h-6 w-6 text-blue-600" />
                 </div>
-                <h4 className="font-semibold text-gray-900">2. Get Location</h4>
+                <h4 className="font-semibold text-gray-900">1. Get Location</h4>
                 <p className="text-sm text-gray-600">Allow location access and verify you&apos;re at the assigned location</p>
               </div>
               <div className="space-y-2">
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
                   <Camera className="h-6 w-6 text-blue-600" />
                 </div>
-                <h4 className="font-semibold text-gray-900">3. Start Camera</h4>
+                <h4 className="font-semibold text-gray-900">2. Start Camera</h4>
                 <p className="text-sm text-gray-600">Allow camera access for photo verification</p>
               </div>
               <div className="space-y-2">
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
                   <CheckCircle className="h-6 w-6 text-blue-600" />
                 </div>
-                <h4 className="font-semibold text-gray-900">4. Mark Attendance</h4>
+                <h4 className="font-semibold text-gray-900">3. Mark Attendance</h4>
                 <p className="text-sm text-gray-600">Click Check In or Check Out to record attendance</p>
               </div>
             </div>

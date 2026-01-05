@@ -1,8 +1,13 @@
 // modules/staffs/attendance/attendance.route.ts
 import { Router, Request, Response } from 'express'
-import { detectDevice, getLocationData, createAttendance, checkRemainingAttempts, getAssignedLocation } from '@/modules/staffs/attendance/attendance.controller'
+import { detectDevice, getLocationData, createAttendance, checkRemainingAttempts, getAssignedLocation, getAttendanceRecords } from '@/modules/staffs/attendance/attendance.controller'
 
 const router = Router()
+
+// Get attendance records - GET (this will be mounted at /attendance, so this becomes /attendance/)
+router.get('/', (req: Request, res: Response) => {
+  return getAttendanceRecords(req, res)
+})
 
 // Attendance endpoint - POST (this will be mounted at /attendance, so this becomes /attendance/)
 router.post('/', (req: Request, res: Response) => {

@@ -23,19 +23,19 @@ async function validateEmployeeLocation(
   today.setHours(0, 0, 0, 0);
 
   // Find user
-  const user = await prisma.user.findUnique({
+  const employee = await prisma.fieldEngineer.findUnique({
     where: { employeeId }
   });
 
-  if (!user) {
+  if (!employee) {
     return { isValid: false, message: "Employee not found" };
   }
 
   // Get today's assigned location for the employee
   const dailyLocation = await prisma.dailyLocation.findUnique({
     where: {
-      userId_date: {
-        userId: user.id,
+      employeeId_date: {
+        employeeId: employee.id,
         date: today
       }
     }
@@ -96,33 +96,34 @@ export async function createAttendanceRecord(data: {
   userAgent: string;
   photo?: string;
   status: 'PRESENT' | 'LATE';
+  locationText?: string; // Add support for admin-provided location text
 }): Promise<AttendanceRecord> {
-  let locationString = "Location not provided";
+  let locationString = data.locationText || "Location not provided";
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  // Find the user by employeeId
-  const user = await prisma.user.findUnique({
+  // Find the employee by employeeId
+  const employee = await prisma.fieldEngineer.findUnique({
     where: { employeeId: data.employeeId }
   });
   
-  if (!user) {
-    throw new Error(`User with employee ID ${data.employeeId} not found`);
+  if (!employee) {
+    throw new Error(`Employee with employee ID ${data.employeeId} not found`);
   }
 
   // Check existing attendance record for attempt count
   let existingAttendance = await prisma.attendance.findUnique({
     where: {
-      userId_date: {
-        userId: user.id,
+      employeeId_date: {
+        employeeId: employee.id,
         date: today
       }
     }
   });
 
-  // If coordinates provided, validate location
-  if (data.coordinates) {
+  // If coordinates provided and not admin entry (0,0), validate location
+  if (data.coordinates && (data.coordinates.latitude !== 0 || data.coordinates.longitude !== 0)) {
     const locationValidation = await validateEmployeeLocation(data.employeeId, data.coordinates);
     
     if (!locationValidation.isValid) {
@@ -143,8 +144,8 @@ export async function createAttendanceRecord(data: {
       if (currentAttempts >= 3) {
         await prisma.attendance.upsert({
           where: {
-            userId_date: {
-              userId: user.id,
+            employeeId_date: {
+              employeeId: employee.id,
               date: today
             }
           },
@@ -161,7 +162,7 @@ export async function createAttendanceRecord(data: {
             updatedAt: new Date()
           },
           create: {
-            userId: user.id,
+            employeeId: employee.id,
             date: today,
             status: 'ABSENT',
             attemptCount: 'THREE',
@@ -182,8 +183,8 @@ export async function createAttendanceRecord(data: {
       const attemptCountMap = ['ZERO', 'ONE', 'TWO', 'THREE'] as const;
       await prisma.attendance.upsert({
         where: {
-          userId_date: {
-            userId: user.id,
+          employeeId_date: {
+            employeeId: employee.id,
             date: today
           }
         },
@@ -192,7 +193,7 @@ export async function createAttendanceRecord(data: {
           updatedAt: new Date()
         },
         create: {
-          userId: user.id,
+          employeeId: employee.id,
           date: today,
           status: 'PRESENT', // Temporary status, will be updated when location is correct
           attemptCount: attemptCountMap[currentAttempts] as any,
@@ -208,8 +209,14 @@ export async function createAttendanceRecord(data: {
 
     // Location is valid, get location data
     locationString = locationValidation.currentLocation || await getHumanReadableLocation(data.coordinates);
+  } else if (data.coordinates && data.coordinates.latitude === 0 && data.coordinates.longitude === 0) {
+    // Admin entry with 0,0 coordinates - use provided location text
+    locationString = data.locationText || "Admin Entry";
+  } else if (!data.coordinates && data.locationText) {
+    // No coordinates but location text provided (admin entry)
+    locationString = data.locationText;
   } else {
-    throw new Error("Location coordinates are required for attendance");
+    throw new Error("Location coordinates or location text are required for attendance");
   }
   
   // Get device information
@@ -239,7 +246,7 @@ export async function createAttendanceRecord(data: {
       // Create new record (for check-in)
       savedRecord = await prisma.attendance.create({
         data: {
-          userId: user.id,
+          employeeId: employee.id,
           date: today,
           clockIn: data.status === 'PRESENT' ? new Date() : null,
           latitude: data.coordinates ? data.coordinates.latitude : null,
@@ -305,16 +312,16 @@ export function validateCoordinates(coordinates: GeolocationCoordinates): boolea
 // Get attendance records for an employee
 export async function getEmployeeAttendance(employeeId: string, startDate?: Date, endDate?: Date) {
   try {
-    const user = await prisma.user.findUnique({
+    const employee = await prisma.fieldEngineer.findUnique({
       where: { employeeId }
     });
     
-    if (!user) {
+    if (!employee) {
       return [];
     }
     
     const whereClause: any = {
-      userId: user.id
+      employeeId: employee.id
     };
     
     if (startDate || endDate) {
@@ -355,7 +362,7 @@ export async function getAllAttendance(page: number = 1, limit: number = 50) {
 
 // Create attendance override (admin function)
 export async function createAttendanceOverride(data: {
-  userId: string;
+  employeeId: string;
   date: Date;
   adminId: string;
   oldStatus: string;
@@ -366,7 +373,7 @@ export async function createAttendanceOverride(data: {
     // Create the override record
     const override = await prisma.attendanceOverride.create({
       data: {
-        userId: data.userId,
+        employeeId: data.employeeId,
         date: data.date,
         adminId: data.adminId,
         oldStatus: data.oldStatus as any,
@@ -378,7 +385,7 @@ export async function createAttendanceOverride(data: {
     // Update the actual attendance record
     await prisma.attendance.updateMany({
       where: {
-        userId: data.userId,
+        employeeId: data.employeeId,
         date: data.date
       },
       data: {
@@ -395,9 +402,9 @@ export async function createAttendanceOverride(data: {
 }
 
 // Get attendance overrides for a user
-export async function getAttendanceOverrides(userId: string, startDate?: Date, endDate?: Date) {
+export async function getAttendanceOverrides(employeeId: string, startDate?: Date, endDate?: Date) {
   try {
-    const whereClause: any = { userId };
+    const whereClause: any = { employeeId };
     
     if (startDate || endDate) {
       whereClause.date = {};
@@ -422,18 +429,18 @@ export async function getRemainingAttempts(employeeId: string): Promise<{ remain
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const user = await prisma.user.findUnique({
+  const employee = await prisma.fieldEngineer.findUnique({
     where: { employeeId }
   });
 
-  if (!user) {
-    throw new Error(`User with employee ID ${employeeId} not found`);
+  if (!employee) {
+    throw new Error(`Employee with employee ID ${employeeId} not found`);
   }
 
   const attendance = await prisma.attendance.findUnique({
     where: {
-      userId_date: {
-        userId: user.id,
+      employeeId_date: {
+        employeeId: employee.id,
         date: today
       }
     }
@@ -467,18 +474,18 @@ export async function getTodayAssignedLocation(employeeId: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const user = await prisma.user.findUnique({
+  const employee = await prisma.fieldEngineer.findUnique({
     where: { employeeId }
   });
 
-  if (!user) {
-    throw new Error(`User with employee ID ${employeeId} not found`);
+  if (!employee) {
+    throw new Error(`Employee with employee ID ${employeeId} not found`);
   }
 
   return await prisma.dailyLocation.findUnique({
     where: {
-      userId_date: {
-        userId: user.id,
+      employeeId_date: {
+        employeeId: employee.id,
         date: today
       }
     }

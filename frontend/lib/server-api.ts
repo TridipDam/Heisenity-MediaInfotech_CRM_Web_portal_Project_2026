@@ -7,6 +7,7 @@ export type CreateAttendanceRequest = {
     longitude?: number
     photo?: string
     status?: 'PRESENT' | 'LATE'
+    location?: string // Add location text field
 }
 
 export type CreateAttendanceResponse = {
@@ -182,4 +183,324 @@ export async function getDeviceInfo(): Promise<DeviceInfo> {
         console.error('getDeviceInfo error:', error)
         throw error
     }
+}
+
+export type AttendanceRecord = {
+    id: string
+    employeeId: string
+    employeeName: string
+    email: string
+    phone?: string
+    teamId?: string
+    isTeamLeader: boolean
+    date: string
+    clockIn?: string
+    status: 'PRESENT' | 'ABSENT' | 'LATE' | 'MARKDOWN'
+    location?: string
+    latitude?: number
+    longitude?: number
+    ipAddress?: string
+    deviceInfo?: string
+    photo?: string
+    locked: boolean
+    lockedReason?: string
+    attemptCount: 'ZERO' | 'ONE' | 'TWO' | 'THREE'
+    createdAt: string
+    updatedAt: string
+}
+
+export type GetAttendanceResponse = {
+    success: boolean
+    data?: {
+        records: AttendanceRecord[]
+        pagination: {
+            page: number
+            limit: number
+            total: number
+            totalPages: number
+        }
+    }
+    error?: string
+}
+
+export async function getAttendanceRecords(params?: {
+    page?: number
+    limit?: number
+    date?: string
+    employeeId?: string
+    status?: string
+}): Promise<GetAttendanceResponse> {
+    try {
+        const searchParams = new URLSearchParams()
+        
+        if (params?.page) searchParams.append('page', params.page.toString())
+        if (params?.limit) searchParams.append('limit', params.limit.toString())
+        if (params?.date) searchParams.append('date', params.date)
+        if (params?.employeeId) searchParams.append('employeeId', params.employeeId)
+        if (params?.status) searchParams.append('status', params.status)
+
+        const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/attendance${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+        
+        const res = await fetch(url, {
+            cache: 'no-store'
+        })
+
+        const response = await res.json()
+
+        if (!res.ok) {
+            throw new Error(response.error || `Failed to get attendance records: ${res.status}`)
+        }
+
+        return response
+    } catch (error) {
+        console.error('getAttendanceRecords error:', error)
+        throw error
+    }
+}
+// Employee ID Generator Types
+export type GenerateEmployeeIdResponse = {
+  success: boolean
+  message: string
+  data?: {
+    employeeId: string
+  }
+  error?: string
+}
+
+export type CheckEmployeeIdAvailabilityResponse = {
+  success: boolean
+  message: string
+  data?: {
+    employeeId: string
+    available: boolean
+  }
+  error?: string
+}
+
+export type GetNextAvailableIdsResponse = {
+  success: boolean
+  message: string
+  data?: {
+    nextAvailableIds: string[]
+  }
+  error?: string
+}
+
+export type ValidateEmployeeIdResponse = {
+  success: boolean
+  message: string
+  data?: {
+    employeeId: string
+    valid: boolean
+  }
+  error?: string
+}
+
+// Employee ID Generator API Functions
+export async function generateNextEmployeeId(): Promise<GenerateEmployeeIdResponse> {
+  try {
+    const response = await fetch('/api/v1/employee-id/generate', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const data = await response.json()
+    console.log('API Response:', data)
+    return data
+  } catch (error) {
+    console.error('Error generating employee ID:', error)
+    return {
+      success: false,
+      message: 'Failed to generate employee ID',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+export async function checkEmployeeIdAvailability(employeeId: string): Promise<CheckEmployeeIdAvailabilityResponse> {
+  try {
+    const response = await fetch(`/api/v1/employee-id/check/${employeeId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('Error checking employee ID availability:', error)
+    return {
+      success: false,
+      message: 'Failed to check employee ID availability',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+export async function getNextAvailableEmployeeIds(count: number = 5): Promise<GetNextAvailableIdsResponse> {
+  try {
+    const response = await fetch(`/api/v1/employee-id/preview?count=${count}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('Error getting next available employee IDs:', error)
+    return {
+      success: false,
+      message: 'Failed to get next available employee IDs',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+export async function validateEmployeeIdFormat(employeeId: string): Promise<ValidateEmployeeIdResponse> {
+  try {
+    const response = await fetch('/api/v1/employee-id/validate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ employeeId })
+    })
+
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('Error validating employee ID format:', error)
+    return {
+      success: false,
+      message: 'Failed to validate employee ID format',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+// Field Engineer Types
+export type FieldEngineer = {
+  id: string
+  name: string
+  employeeId: string
+  email: string
+  phone?: string
+  teamId?: string
+  isTeamLeader: boolean
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type GetFieldEngineersResponse = {
+  success: boolean
+  message: string
+  data?: {
+    fieldEngineers: FieldEngineer[]
+    total: number
+  }
+  error?: string
+}
+
+export type GetFieldEngineerResponse = {
+  success: boolean
+  message: string
+  data?: FieldEngineer
+  error?: string
+}
+
+export type CreateFieldEngineerRequest = {
+  name: string
+  employeeId: string
+  email: string
+  password: string
+  phone?: string
+  teamId?: string
+  isTeamLeader?: boolean
+}
+
+export type CreateFieldEngineerResponse = {
+  success: boolean
+  message: string
+  data?: FieldEngineer
+  error?: string
+}
+
+// Field Engineer API Functions
+export async function getAllFieldEngineers(params?: {
+  status?: string
+  search?: string
+}): Promise<GetFieldEngineersResponse> {
+  try {
+    const queryParams = new URLSearchParams()
+    if (params?.status) queryParams.append('status', params.status)
+    if (params?.search) queryParams.append('search', params.search)
+    
+    const url = `/api/v1/field-engineers${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('Error getting field engineers:', error)
+    return {
+      success: false,
+      message: 'Failed to get field engineers',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+export async function getFieldEngineerByEmployeeId(employeeId: string): Promise<GetFieldEngineerResponse> {
+  try {
+    const response = await fetch(`/api/v1/field-engineers/${employeeId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('Error getting field engineer:', error)
+    return {
+      success: false,
+      message: 'Failed to get field engineer',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+export async function createFieldEngineer(fieldEngineer: CreateFieldEngineerRequest): Promise<CreateFieldEngineerResponse> {
+  try {
+    const response = await fetch('/api/v1/field-engineers', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(fieldEngineer)
+    })
+
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('Error creating field engineer:', error)
+    return {
+      success: false,
+      message: 'Failed to create field engineer',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
 }

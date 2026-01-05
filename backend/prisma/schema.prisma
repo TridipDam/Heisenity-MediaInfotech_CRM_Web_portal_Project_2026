@@ -7,43 +7,62 @@ datasource db {
   provider = "mysql"
 }
 
-model User {
+model Admin {
   id                  String               @id @default(cuid())
+  adminId             String               @unique
   name                String
-  role                UserRole             @default(STAFF)
-  employeeId          String               @unique
   email               String               @unique
+  password            String
   phone               String?
-  teamId              String?
   status              String               @default("ACTIVE")
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
-  adminOverrides      AttendanceOverride[] @relation("AdminAttendanceOverrides")
-  attendanceOverrides AttendanceOverride[] @relation("UserAttendanceOverrides")
-  attendances         Attendance[]
-  dailyLocations      DailyLocation[]
+  adminOverrides      AttendanceOverride[]
+  assignedTeamLeaders FieldEngineer[]      @relation("AdminAssignedTeamLeaders")
 
-  @@map("users")
+  @@map("admins")
+}
+
+model FieldEngineer {
+  id                  String               @id @default(cuid())
+  name                String
+  employeeId          String               @unique
+  email               String               @unique
+  password            String
+  phone               String?
+  teamId              String?
+  isTeamLeader        Boolean              @default(false)
+  assignedBy          String?
+  status              String               @default("ACTIVE")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  dailyLocations      DailyLocation[]
+  attendances         Attendance[]
+  attendanceOverrides AttendanceOverride[]
+  assignedAdmin       Admin?               @relation("AdminAssignedTeamLeaders", fields: [assignedBy], references: [id])
+
+  @@index([assignedBy], map: "field_engineers_assignedBy_fkey")
+  @@map("field_engineers")
 }
 
 model DailyLocation {
-  id         String   @id @default(cuid())
-  userId     String
-  date       DateTime @db.Date
-  latitude   Decimal  @db.Decimal(10, 8)
-  longitude  Decimal  @db.Decimal(11, 8)
-  radius     Int      @default(100)
+  id         String        @id @default(cuid())
+  employeeId String
+  date       DateTime      @db.Date
+  latitude   Decimal       @db.Decimal(10, 8)
+  longitude  Decimal       @db.Decimal(11, 8)
+  radius     Int           @default(100)
   address    String?
   city       String?
   state      String?
   startTime  DateTime
   endTime    DateTime
   assignedBy String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  employee   FieldEngineer @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, date])
+  @@unique([employeeId, date])
   @@map("daily_locations")
 }
 
@@ -60,46 +79,41 @@ model Attendance {
   deviceInfo   String?
   latitude     Decimal?         @db.Decimal(10, 8)
   locked       Boolean          @default(false)
-  lockedReason String           @db.Text
+  lockedReason String?          @db.Text
   longitude    Decimal?         @db.Decimal(11, 8)
   photo        String?          @db.LongText
-  userId       String
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId   String
+  employee     FieldEngineer    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, date])
+  @@unique([employeeId, date])
   @@index([date])
   @@index([status])
   @@map("attendances")
 }
 
 model AttendanceOverride {
-  id        String           @id @default(cuid())
-  userId    String
-  date      DateTime         @db.Date
-  adminId   String
-  oldStatus AttendanceStatus
-  newStatus AttendanceStatus
-  reason    String           @db.Text
-  timestamp DateTime         @default(now())
-  admin     User             @relation("AdminAttendanceOverrides", fields: [adminId], references: [id], onDelete: Cascade)
-  user      User             @relation("UserAttendanceOverrides", fields: [userId], references: [id], onDelete: Cascade)
+  id         String           @id @default(cuid())
+  employeeId String
+  date       DateTime         @db.Date
+  adminId    String
+  oldStatus  AttendanceStatus
+  newStatus  AttendanceStatus
+  reason     String           @db.Text
+  timestamp  DateTime         @default(now())
+  admin      Admin            @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  employee   FieldEngineer    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([employeeId])
   @@index([adminId])
   @@index([date])
   @@map("attendance_overrides")
-}
-
-enum UserRole {
-  ADMIN
-  STAFF
 }
 
 enum AttendanceStatus {
   PRESENT
   ABSENT
   LATE
-  REJECTED
+  MARKDOWN
 }
 
 enum AttemptCount {

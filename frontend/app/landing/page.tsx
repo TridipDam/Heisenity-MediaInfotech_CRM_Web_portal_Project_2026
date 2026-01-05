@@ -2,51 +2,43 @@
 
 import LandingPage from "@/components/LandingPage"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useSession } from "next-auth/react"
 
 export default function Landing() {
   const router = useRouter()
+  const { data: session } = useSession()
   
-  // Demo state - in real app this would come from auth context
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [userProfile] = useState({
-    name: "John Doe",
-    email: "john.doe@company.com",
-    role: "Administrator",
-    avatar: "/api/placeholder/40/40"
-  })
+  const isLoggedIn = !!session?.user
+  const userProfile = session?.user ? {
+    name: session.user.name || "User",
+    email: session.user.email || "",
+    role: (session.user as any).userType === 'admin' ? 'Administrator' : 'Employee',
+    avatar: "/api/placeholder/40/40",
+    employeeId: (session.user as any).employeeId
+  } : undefined
 
   const handleGetStarted = (type?: string) => {
     if (isLoggedIn) {
-      // If logged in, go to dashboard
-      router.push("/")
+      // If logged in as employee, stay on landing or go to attendance
+      const userType = (session?.user as any)?.userType
+      if (userType === 'employee') {
+        router.push("/attendance")
+      } else {
+        // If admin, go to dashboard
+        router.push("/dashboard")
+      }
     } else {
       // If not logged in, go to login
       router.push(`/login?type=${type || 'user'}`)
     }
   }
 
-  // Demo toggle for testing - remove in production
-  const toggleLogin = () => {
-    setIsLoggedIn(!isLoggedIn)
-  }
-
   return (
     <div>
-      {/* Demo toggle button - remove in production */}
-      <div className="fixed top-4 left-4 z-50">
-        <button 
-          onClick={toggleLogin}
-          className="bg-gray-800 text-white px-3 py-1 rounded text-sm"
-        >
-          Toggle Login ({isLoggedIn ? 'Logged In' : 'Logged Out'})
-        </button>
-      </div>
-      
       <LandingPage 
         onGetStarted={handleGetStarted}
         isLoggedIn={isLoggedIn}
-        userProfile={isLoggedIn ? userProfile : undefined}
+        userProfile={userProfile}
       />
     </div>
   )

@@ -7,7 +7,7 @@ import { GeolocationCoordinates } from './attendance.types'
 
 export const createAttendance = async (req: Request, res: Response) => {
   try {
-    const { employeeId, latitude, longitude, photo, status = 'PRESENT' } = req.body
+    const { employeeId, latitude, longitude, photo, status = 'PRESENT', location } = req.body
 
     // Validate required fields
     if (!employeeId) {
@@ -23,11 +23,11 @@ export const createAttendance = async (req: Request, res: Response) => {
 
     // Prepare coordinates if provided
     let coordinates: GeolocationCoordinates | undefined
-    if (latitude && longitude) {
+    if (latitude !== undefined && longitude !== undefined) {
       const lat = parseFloat(latitude)
       const lng = parseFloat(longitude)
       
-      // Validate coordinates
+      // Validate coordinates (allow 0,0 for admin entries)
       if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
         return res.status(400).json({
           success: false,
@@ -53,7 +53,8 @@ export const createAttendance = async (req: Request, res: Response) => {
           ipAddress,
           userAgent,
           photo,
-          status: status as 'PRESENT' | 'LATE'
+          status: status as 'PRESENT' | 'LATE',
+          locationText: location // Pass location text for admin entries
         })
         break // Success, exit retry loop
       } catch (error) {
@@ -278,6 +279,118 @@ export const getAssignedLocation = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get assigned location'
+    })
+  }
+}
+
+export const getAttendanceRecords = async (req: Request, res: Response) => {
+  try {
+    const { page = '1', limit = '50', date, employeeId, status } = req.query
+
+    const pageNum = parseInt(page as string) || 1
+    const limitNum = parseInt(limit as string) || 50
+    const skip = (pageNum - 1) * limitNum
+
+    // Build where clause
+    const whereClause: any = {}
+    
+    if (date) {
+      const targetDate = new Date(date as string)
+      targetDate.setHours(0, 0, 0, 0)
+      whereClause.date = targetDate
+    }
+
+    if (employeeId) {
+      // Find employee by employeeId
+      const { prisma } = await import('@/lib/prisma')
+      const employee = await prisma.fieldEngineer.findUnique({
+        where: { employeeId: employeeId as string }
+      })
+      if (employee) {
+        whereClause.employeeId = employee.id
+      } else {
+        return res.status(404).json({
+          success: false,
+          error: 'Employee not found'
+        })
+      }
+    }
+
+    if (status) {
+      whereClause.status = status
+    }
+
+    const { prisma } = await import('@/lib/prisma')
+    
+    // Get attendance records with employee details
+    const attendanceRecords = await prisma.attendance.findMany({
+      where: whereClause,
+      include: {
+        employee: {
+          select: {
+            name: true,
+            employeeId: true,
+            email: true,
+            phone: true,
+            teamId: true,
+            isTeamLeader: true
+          }
+        }
+      },
+      orderBy: {
+        date: 'desc'
+      },
+      skip,
+      take: limitNum
+    })
+
+    // Get total count for pagination
+    const totalCount = await prisma.attendance.count({
+      where: whereClause
+    })
+
+    // Format the response
+    const formattedRecords = attendanceRecords.map(record => ({
+      id: record.id,
+      employeeId: record.employee.employeeId,
+      employeeName: record.employee.name,
+      email: record.employee.email,
+      phone: record.employee.phone,
+      teamId: record.employee.teamId,
+      isTeamLeader: record.employee.isTeamLeader,
+      date: record.date.toISOString().split('T')[0],
+      clockIn: record.clockIn?.toISOString(),
+      status: record.status,
+      location: record.location,
+      latitude: record.latitude ? parseFloat(record.latitude.toString()) : null,
+      longitude: record.longitude ? parseFloat(record.longitude.toString()) : null,
+      ipAddress: record.ipAddress,
+      deviceInfo: record.deviceInfo,
+      photo: record.photo,
+      locked: record.locked,
+      lockedReason: record.lockedReason,
+      attemptCount: record.attemptCount,
+      createdAt: record.createdAt.toISOString(),
+      updatedAt: record.updatedAt.toISOString()
+    }))
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        records: formattedRecords,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limitNum)
+        }
+      }
+    })
+  } catch (error) {
+    console.error('Error getting attendance records:', error)
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get attendance records'
     })
   }
 }
