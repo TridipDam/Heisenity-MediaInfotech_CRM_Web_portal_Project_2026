@@ -55,7 +55,8 @@ const authOptions: AuthOptions = {
             name: user.name,
             employeeId: user.employeeId,
             adminId: user.adminId,
-            userType: user.userType
+            userType: user.userType,
+            sessionToken: user.sessionToken
           }
         } catch (error) {
           console.error("Auth error:", error)
@@ -71,6 +72,7 @@ const authOptions: AuthOptions = {
         token.userType = customUser.userType
         token.employeeId = customUser.employeeId
         token.adminId = customUser.adminId
+        token.sessionToken = (customUser as any).sessionToken
       }
       return token
     },
@@ -80,6 +82,7 @@ const authOptions: AuthOptions = {
         ;(session.user as CustomUser).userType = token.userType as string
         ;(session.user as CustomUser).employeeId = token.employeeId as string
         ;(session.user as CustomUser).adminId = token.adminId as string
+        ;(session.user as any).sessionToken = token.sessionToken as string
       }
       return session
     },

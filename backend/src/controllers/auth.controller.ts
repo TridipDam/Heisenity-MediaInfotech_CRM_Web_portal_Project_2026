@@ -1,5 +1,6 @@
 import { Request, Response } from 'express'
 import { authService } from '../services/auth.service'
+import { sessionService } from '../services/session.service'
 
 class AuthController {
   async login(req: Request, res: Response) {
@@ -18,7 +19,11 @@ class AuthController {
         return res.status(400).json({ error: 'Admin ID is required for admin login' })
       }
 
-      const user = await authService.authenticate(email, password, employeeId, adminId, userType)
+      // Get device info and IP
+      const deviceInfo = req.headers['user-agent']
+      const ipAddress = req.ip || req.connection.remoteAddress
+
+      const user = await authService.authenticate(email, password, employeeId, adminId, userType, deviceInfo, ipAddress)
 
       if (!user) {
         return res.status(401).json({ error: 'Invalid credentials' })
@@ -27,6 +32,54 @@ class AuthController {
       res.json(user)
     } catch (error) {
       console.error('Login error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+
+  async logout(req: Request, res: Response) {
+    try {
+      const { sessionToken } = req.body
+
+      if (!sessionToken) {
+        return res.status(400).json({ error: 'Session token is required' })
+      }
+
+      await sessionService.invalidateSession(sessionToken)
+      res.json({ message: 'Logged out successfully' })
+    } catch (error) {
+      console.error('Logout error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+
+  async logoutAll(req: Request, res: Response) {
+    try {
+      const { userId } = req.body
+
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' })
+      }
+
+      await sessionService.invalidateAllUserSessions(userId)
+      res.json({ message: 'Logged out from all devices successfully' })
+    } catch (error) {
+      console.error('Logout all error:', error)
+      res.status(500).json({ error: 'Internal server error' })
+    }
+  }
+
+  async getSessions(req: Request, res: Response) {
+    try {
+      const { userId } = req.params
+
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' })
+      }
+
+      const sessions = await sessionService.getActiveSessions(userId)
+      res.json(sessions)
+    } catch (error) {
+      console.error('Get sessions error:', error)
       res.status(500).json({ error: 'Internal server error' })
     }
   }

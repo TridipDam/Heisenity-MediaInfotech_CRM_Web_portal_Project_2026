@@ -19,6 +19,7 @@ model Admin {
   updatedAt           DateTime             @updatedAt
   adminOverrides      AttendanceOverride[]
   assignedTeamLeaders FieldEngineer[]      @relation("AdminAssignedTeamLeaders")
+  sessions            UserSession[]
 
   @@map("admins")
 }
@@ -41,6 +42,7 @@ model FieldEngineer {
   attendanceOverrides AttendanceOverride[]
   tasks               Task[]
   assignedAdmin       Admin?               @relation("AdminAssignedTeamLeaders", fields: [assignedBy], references: [id])
+  sessions            UserSession[]
 
   @@index([assignedBy], map: "field_engineers_assignedBy_fkey")
   @@map("field_engineers")
@@ -158,4 +160,31 @@ enum AttemptCount {
   ONE
   TWO
   THREE
+}
+
+model UserSession {
+  id           String        @id @default(cuid())
+  sessionToken String        @unique
+  userId       String
+  userType     UserType
+  deviceInfo   String?
+  ipAddress    String?
+  isActive     Boolean       @default(true)
+  lastActivity DateTime      @default(now())
+  createdAt    DateTime      @default(now())
+  expiresAt    DateTime
+  
+  // Relations
+  admin        Admin?        @relation(fields: [userId], references: [id], onDelete: Cascade, map: "user_sessions_admin_fkey")
+  employee     FieldEngineer? @relation(fields: [userId], references: [id], onDelete: Cascade, map: "user_sessions_employee_fkey")
+
+  @@index([userId])
+  @@index([sessionToken])
+  @@index([isActive])
+  @@map("user_sessions")
+}
+
+enum UserType {
+  ADMIN
+  EMPLOYEE
 }
