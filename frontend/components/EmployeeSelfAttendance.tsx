@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useSession } from "next-auth/react"
 import { 
@@ -59,6 +58,7 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
   const { data: session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
   const [cameraActive, setCameraActive] = useState(false)
+  const [cameraLoading, setCameraLoading] = useState(false)
   const [attendanceMarked, setAttendanceMarked] = useState(false)
   const [employeeId, setEmployeeId] = useState("")
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -184,9 +184,26 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
     }
   }, [employeeId])
 
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [])
+
   const startCamera = async () => {
     try {
-      setCameraActive(true)
+      setCameraLoading(true)
+      setCameraActive(false)
+      
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access is not supported in this browser')
+      }
+      
+      console.log('Requesting camera access...')
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'user',
@@ -194,22 +211,58 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
           height: { ideal: 480 }
         } 
       })
+      
       streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+        // Wait for video to load
+        await new Promise((resolve) => {
+          if (videoRef.current) {
+            videoRef.current.onloadedmetadata = () => resolve(true)
+          }
+        })
       }
+      
+      setCameraActive(true)
+      console.log('Camera started successfully')
     } catch (error) {
       console.error('Error accessing camera:', error)
       setCameraActive(false)
+      
+      // Show user-friendly error message
+      let errorMessage = 'Failed to access camera. '
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage += 'Please allow camera permissions and try again.'
+        } else if (error.name === 'NotFoundError') {
+          errorMessage += 'No camera found on this device.'
+        } else if (error.name === 'NotSupportedError') {
+          errorMessage += 'Camera is not supported in this browser.'
+        } else {
+          errorMessage += error.message
+        }
+      }
+      
+      alert(errorMessage)
+    } finally {
+      setCameraLoading(false)
     }
   }
 
   const stopCamera = () => {
+    console.log('Stopping camera...')
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current.getTracks().forEach(track => {
+        track.stop()
+        console.log('Stopped track:', track.kind)
+      })
       streamRef.current = null
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
     setCameraActive(false)
+    console.log('Camera stopped')
   }
 
   const markAttendance = async (type: 'check-in' | 'check-out') => {
@@ -463,9 +516,19 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
                     onClick={startCamera}
                     className="w-full bg-blue-600 hover:bg-blue-700"
                     size="lg"
+                    disabled={cameraLoading}
                   >
-                    <Camera className="h-4 w-4 mr-2" />
-                    Start Camera
+                    {cameraLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Starting Camera...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-4 w-4 mr-2" />
+                        Start Camera
+                      </>
+                    )}
                   </Button>
                 ) : (
                   <Button 
@@ -477,6 +540,23 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo, locatio
                     Stop Camera
                   </Button>
                 )}
+                
+                {/* Debug button */}
+                <Button 
+                  onClick={() => {
+                    console.log('Camera debug info:')
+                    console.log('- cameraActive:', cameraActive)
+                    console.log('- cameraLoading:', cameraLoading)
+                    console.log('- streamRef.current:', streamRef.current)
+                    console.log('- videoRef.current:', videoRef.current)
+                    console.log('- navigator.mediaDevices:', navigator.mediaDevices)
+                  }}
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs"
+                >
+                  Debug Camera
+                </Button>
               </div>
             </CardContent>
           </Card>

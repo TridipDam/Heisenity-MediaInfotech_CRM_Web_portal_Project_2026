@@ -205,8 +205,42 @@ export type AttendanceRecord = {
     locked: boolean
     lockedReason?: string
     attemptCount: 'ZERO' | 'ONE' | 'TWO' | 'THREE'
+    taskStartTime?: string
+    taskEndTime?: string
+    taskLocation?: string
     createdAt: string
     updatedAt: string
+    assignedTask?: AssignedTask
+}
+
+export type AssignedTask = {
+    id: string
+    title: string
+    description: string
+    category?: string
+    location?: string
+    startTime?: string
+    endTime?: string
+    assignedBy: string
+    assignedAt: string
+    status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+}
+
+export type CreateTaskRequest = {
+    employeeId: string
+    title: string
+    description: string
+    category?: string
+    location?: string
+    startTime?: string
+    endTime?: string
+}
+
+export type CreateTaskResponse = {
+    success: boolean
+    message: string
+    data?: AssignedTask
+    error?: string
 }
 
 export type GetAttendanceResponse = {
@@ -714,6 +748,31 @@ export async function getNextEmployeeId(): Promise<GetNextEmployeeIdResponse> {
     return response
   } catch (error) {
     console.error('getNextEmployeeId error:', error)
+    throw error
+  }
+}
+
+// Task Assignment API Functions
+export async function assignTask(task: CreateTaskRequest): Promise<CreateTaskResponse> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tasks/assign`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(task),
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to assign task: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('assignTask error:', error)
     throw error
   }
 }

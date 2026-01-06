@@ -361,7 +361,7 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
 
     const { prisma } = await import('@/lib/prisma')
     
-    // Get attendance records with employee details
+    // Get attendance records with employee details and assigned tasks
     const attendanceRecords = await prisma.attendance.findMany({
       where: whereClause,
       include: {
@@ -373,6 +373,20 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
             phone: true,
             teamId: true,
             isTeamLeader: true
+          }
+        },
+        assignedTask: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: true,
+            location: true,
+            startTime: true,
+            endTime: true,
+            assignedBy: true,
+            assignedAt: true,
+            status: true
           }
         }
       },
@@ -410,6 +424,21 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
       locked: record.locked,
       lockedReason: record.lockedReason,
       attemptCount: record.attemptCount,
+      taskStartTime: record.taskStartTime,
+      taskEndTime: record.taskEndTime,
+      taskLocation: record.taskLocation,
+      assignedTask: record.assignedTask ? {
+        id: record.assignedTask.id,
+        title: record.assignedTask.title,
+        description: record.assignedTask.description,
+        category: record.assignedTask.category,
+        location: record.assignedTask.location,
+        startTime: record.assignedTask.startTime,
+        endTime: record.assignedTask.endTime,
+        assignedBy: record.assignedTask.assignedBy,
+        assignedAt: record.assignedTask.assignedAt.toISOString(),
+        status: record.assignedTask.status
+      } : undefined,
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString()
     }))

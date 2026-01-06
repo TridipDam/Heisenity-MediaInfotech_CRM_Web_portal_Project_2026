@@ -51,18 +51,53 @@ async function validateEmployeeLocation(
   const startTime = dailyLocation.startTime.getHours() * 60 + dailyLocation.startTime.getMinutes();
   const endTime = dailyLocation.endTime.getHours() * 60 + dailyLocation.endTime.getMinutes();
 
-  if (currentTime < startTime || currentTime > endTime) {
-    return { 
-      isValid: false, 
-      message: `Attendance can only be marked between ${dailyLocation.startTime.toLocaleTimeString()} and ${dailyLocation.endTime.toLocaleTimeString()}`,
-      allowedLocation: dailyLocation
-    };
+  // Check if this is a task-based location (coordinates are 0,0)
+  const isTaskBasedLocation = parseFloat(dailyLocation.latitude.toString()) === 0 && 
+                              parseFloat(dailyLocation.longitude.toString()) === 0;
+
+  // For task-based locations, be more flexible with time validation
+  if (!isTaskBasedLocation) {
+    // Only enforce strict time validation for GPS-based locations
+    if (currentTime < startTime || currentTime > endTime) {
+      return { 
+        isValid: false, 
+        message: `Attendance can only be marked between ${dailyLocation.startTime.toLocaleTimeString()} and ${dailyLocation.endTime.toLocaleTimeString()}`,
+        allowedLocation: dailyLocation
+      };
+    }
+  } else {
+    // For task-based locations, allow a wider time window (e.g., ±2 hours from start time)
+    const flexibleStartTime = startTime - 120; // 2 hours before
+    const flexibleEndTime = Math.max(endTime, startTime) + 120; // 2 hours after (or after start time if same)
+    
+    if (currentTime < flexibleStartTime || currentTime > flexibleEndTime) {
+      const flexStart = new Date();
+      flexStart.setHours(Math.floor(flexibleStartTime / 60), flexibleStartTime % 60, 0, 0);
+      const flexEnd = new Date();
+      flexEnd.setHours(Math.floor(flexibleEndTime / 60), flexibleEndTime % 60, 0, 0);
+      
+      return { 
+        isValid: false, 
+        message: `Attendance can only be marked between ${flexStart.toLocaleTimeString()} and ${flexEnd.toLocaleTimeString()} (flexible window for task-based location)`,
+        allowedLocation: dailyLocation
+      };
+    }
   }
 
   // Get human-readable location for current coordinates
   const currentLocationString = await getHumanReadableLocation(coordinates);
 
-  // Check coordinates match within 50 meter radius
+  if (isTaskBasedLocation) {
+    // For task-based locations, allow attendance without GPS validation
+    return { 
+      isValid: true, 
+      message: "Task-based location - attendance allowed", 
+      allowedLocation: dailyLocation,
+      currentLocation: currentLocationString
+    };
+  }
+
+  // Check coordinates match within 50 meter radius for GPS-based locations
   const isLocationValid = isWithinRadius(
     coordinates.latitude,
     coordinates.longitude,
@@ -332,6 +367,22 @@ export async function getEmployeeAttendance(employeeId: string, startDate?: Date
     
     return await prisma.attendance.findMany({
       where: whereClause,
+      include: {
+        assignedTask: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: true,
+            location: true,
+            startTime: true,
+            endTime: true,
+            assignedBy: true,
+            assignedAt: true,
+            status: true
+          }
+        }
+      },
       orderBy: {
         date: 'desc'
       }
@@ -350,6 +401,22 @@ export async function getAllAttendance(page: number = 1, limit: number = 50) {
     return await prisma.attendance.findMany({
       skip,
       take: limit,
+      include: {
+        assignedTask: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: true,
+            location: true,
+            startTime: true,
+            endTime: true,
+            assignedBy: true,
+            assignedAt: true,
+            status: true
+          }
+        }
+      },
       orderBy: {
         date: 'desc'
       }

@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
 import { AddAttendanceRecord } from "@/components/AddAttendanceRecord"
+import { AssignTaskPage } from "@/components/AssignTaskPage"
 import { DateRangePicker } from "@/components/DateRangePicker"
 import { 
   ChevronLeft, 
@@ -26,7 +27,8 @@ import {
   Loader2,
   RefreshCw,
   Plus,
-  X
+  X,
+  UserPlus
 } from "lucide-react"
 import { getAttendanceRecords, getAllEmployees, AttendanceRecord, Employee } from "@/lib/server-api"
 
@@ -86,6 +88,7 @@ const calculateWorkHours = (clockIn?: string) => {
 
 export function AttendancePage() {
   const [showAddForm, setShowAddForm] = React.useState(false)
+  const [showAssignPage, setShowAssignPage] = React.useState(false)
   const [currentDate, setCurrentDate] = React.useState(new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -106,6 +109,7 @@ export function AttendancePage() {
     status: '',
     dateRange: { from: new Date(), to: null } as DateRange
   })
+  const [selectedEmployee, setSelectedEmployee] = React.useState<string | null>(null)
 
   const fetchAttendanceData = React.useCallback(async () => {
     try {
@@ -258,6 +262,11 @@ export function AttendancePage() {
     fetchAttendanceData()
   }
 
+  const handleAssignTask = (employeeId: string) => {
+    setSelectedEmployee(employeeId)
+    setShowAssignPage(true)
+  }
+
   const handleDateChange = (direction: 'prev' | 'next') => {
     let targetDate: Date
     
@@ -346,6 +355,12 @@ export function AttendancePage() {
           onRecordAdded={handleRecordAdded}
           onBack={() => setShowAddForm(false)}
         />
+      ) : showAssignPage ? (
+        <AssignTaskPage 
+          onBack={() => setShowAssignPage(false)}
+          preSelectedEmployeeId={selectedEmployee || undefined}
+          onTaskAssigned={fetchAttendanceData}
+        />
       ) : (
         <div className="p-6 space-y-6">
         {/* Header Section */}
@@ -364,6 +379,14 @@ export function AttendancePage() {
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
+              </Button>
+              <Button 
+                variant="outline" 
+                className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                onClick={() => setShowAssignPage(true)}
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Assign
               </Button>
               <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
                 <Download className="h-4 w-4 mr-2" />
@@ -683,6 +706,7 @@ export function AttendancePage() {
                   <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Status</TableHead>
                   <TableHead className="w-[200px] py-4 px-6 font-semibold text-gray-700">Time In</TableHead>
                   <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Hours</TableHead>
+                  <TableHead className="w-[200px] py-4 px-6 font-semibold text-gray-700">Assigned Task</TableHead>
                   <TableHead className="w-[180px] py-4 px-6 font-semibold text-gray-700">Location</TableHead>
                   <TableHead className="py-4 px-6 font-semibold text-gray-700">Device Info</TableHead>
                   <TableHead className="w-[60px] py-4 px-6"></TableHead>
@@ -699,7 +723,7 @@ export function AttendancePage() {
                     <TableCell className="py-4 px-6">
                       <div className="flex items-center gap-4">
                         <div className="relative">
-                          <div className="w-12 h-12 bg-linear-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-sm">
                             {record.employeeName.split(' ').map(n => n[0]).join('').toUpperCase()}
                           </div>
                           {record.hasAttendance && getStatusIcon(record.status) && (
@@ -715,7 +739,7 @@ export function AttendancePage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-gray-900 truncate">{record.employeeName}</p>
-                          <p className="text-sm text-gray-500">{record.employeeId}</p>
+                          <p className="text-xs text-gray-500 font-medium">{record.employeeId}</p>
                           <p className="text-xs text-gray-400">{record.email}</p>
                         </div>
                       </div>
@@ -745,6 +769,52 @@ export function AttendancePage() {
                       </span>
                     </TableCell>
                     <TableCell className="py-4 px-6">
+                      {record.assignedTask ? (
+                        <div className="space-y-2">
+                          <div className="text-sm font-semibold text-gray-900 truncate">
+                            {record.assignedTask.title}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge 
+                              className={`text-xs ${
+                                record.assignedTask.status === 'PENDING' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                record.assignedTask.status === 'IN_PROGRESS' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                record.assignedTask.status === 'COMPLETED' ? 'bg-green-50 text-green-700 border-green-200' :
+                                'bg-gray-50 text-gray-700 border-gray-200'
+                              }`}
+                            >
+                              {record.assignedTask.status.toLowerCase().replace('_', ' ')}
+                            </Badge>
+                            {record.assignedTask.category && (
+                              <span className="text-xs text-gray-500">
+                                {record.assignedTask.category}
+                              </span>
+                            )}
+                          </div>
+                          {/* Display task timing from attendance record */}
+                          {(record.taskStartTime || record.taskEndTime) && (
+                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                              <Clock className="h-3 w-3" />
+                              <span>
+                                {record.taskStartTime && `${record.taskStartTime}`}
+                                {record.taskStartTime && record.taskEndTime && ' - '}
+                                {record.taskEndTime && `${record.taskEndTime}`}
+                              </span>
+                            </div>
+                          )}
+                          {/* Display task location from attendance record */}
+                          {record.taskLocation && (
+                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                              <MapPin className="h-3 w-3" />
+                              <span className="truncate">{record.taskLocation}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-500">No task assigned</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
                       <div className="flex items-center gap-2 text-gray-600">
                         <MapPin className="h-4 w-4 text-gray-400" />
                         <span className="text-sm truncate">
@@ -769,6 +839,10 @@ export function AttendancePage() {
                           {record.hasAttendance && (
                             <DropdownMenuItem>Edit Record</DropdownMenuItem>
                           )}
+                          <DropdownMenuItem onClick={() => handleAssignTask(record.employeeId)}>
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Assign Task
+                          </DropdownMenuItem>
                           <DropdownMenuItem>Send Message</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

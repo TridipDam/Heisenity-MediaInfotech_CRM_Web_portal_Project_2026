@@ -39,6 +39,7 @@ model FieldEngineer {
   dailyLocations      DailyLocation[]
   attendances         Attendance[]
   attendanceOverrides AttendanceOverride[]
+  tasks               Task[]
   assignedAdmin       Admin?               @relation("AdminAssignedTeamLeaders", fields: [assignedBy], references: [id])
 
   @@index([assignedBy], map: "field_engineers_assignedBy_fkey")
@@ -82,12 +83,18 @@ model Attendance {
   lockedReason String?          @db.Text
   longitude    Decimal?         @db.Decimal(11, 8)
   photo        String?          @db.LongText
+  taskId       String?
+  taskStartTime String?
+  taskEndTime   String?
+  taskLocation  String?
   employeeId   String
   employee     FieldEngineer    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  assignedTask Task?            @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   @@unique([employeeId, date])
   @@index([date])
   @@index([status])
+  @@index([taskId])
   @@map("attendances")
 }
 
@@ -114,6 +121,36 @@ enum AttendanceStatus {
   ABSENT
   LATE
   MARKDOWN
+}
+
+model Task {
+  id          String        @id @default(cuid())
+  employeeId  String
+  title       String
+  description String        @db.Text
+  category    String?
+  location    String?
+  startTime   String?
+  endTime     String?
+  assignedBy  String
+  assignedAt  DateTime      @default(now())
+  status      TaskStatus    @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  employee    FieldEngineer @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attendances Attendance[]
+
+  @@index([employeeId])
+  @@index([assignedAt])
+  @@index([status])
+  @@map("tasks")
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
 enum AttemptCount {
