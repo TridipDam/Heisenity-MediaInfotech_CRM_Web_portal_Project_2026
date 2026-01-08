@@ -1,10 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "npm run build:vercel",
+  "buildCommand": "npm run build --workspace=packages/shared && npm run build --workspace=frontend",
   "outputDirectory": "frontend/.next",
   "installCommand": "npm install",
-  "framework": null,
-  "env": {
-    "NPM_CONFIG_INCLUDE": "dev"
-  }
+  "framework": null
 }
