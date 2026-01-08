@@ -26,7 +26,8 @@ import {
     ChevronRight,
     LogOut,
     DollarSign,
-    UsersRound
+    UsersRound,
+    Car
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -62,6 +63,13 @@ const navigationItems = [
         description: "Salary and compensation"
     },
     {
+        title: "Vehicles",
+        url: "/vehicles",
+        icon: Car,
+        badge: null,
+        description: "Vehicle management"
+    },
+    {
         title: "Stock Management",
         url: "/stock",
         icon: Package,
@@ -88,9 +96,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         const userType = (session.user as any).userType
         
         if (userType === 'employee') {
-            // Employees can only see Attendance
+            // Employees can see Attendance and Vehicles
             return navigationItems.filter(item => 
-                item.url === '/attendance'
+                item.url === '/attendance' || item.url === '/vehicles'
             )
         }
         

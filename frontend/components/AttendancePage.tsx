@@ -27,7 +27,8 @@ import {
   RefreshCw,
   Plus,
   X,
-  UserPlus
+  UserPlus,
+  Car
 } from "lucide-react"
 import { getAttendanceRecords, getAllEmployees, getAllTeams, AttendanceRecord, Employee, Team, deleteAttendanceRecord, exportAttendanceToExcel, exportAttendanceToPDF, ExportParams } from "@/lib/server-api"
 
@@ -526,6 +527,14 @@ export function AttendancePage() {
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                   Refresh
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-purple-300 text-purple-600 hover:bg-purple-50"
+                  onClick={() => window.open('/vehicles', '_blank')}
+                >
+                  <Car className="h-4 w-4 mr-2" />
+                  Vehicles
                 </Button>
                 <Button
                   variant="outline"

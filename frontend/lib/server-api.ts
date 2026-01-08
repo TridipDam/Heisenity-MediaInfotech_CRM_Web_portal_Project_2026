@@ -1089,3 +1089,330 @@ export async function exportAttendanceToPDF(params?: ExportParams): Promise<void
     throw error
   }
 }
+
+// Vehicle Management Types
+export type Vehicle = {
+  id: string
+  vehicleNumber: string
+  make: string
+  model: string
+  year?: number
+  type: 'CAR' | 'BIKE' | 'TRUCK' | 'VAN'
+  status: 'AVAILABLE' | 'ASSIGNED' | 'MAINTENANCE' | 'OUT_OF_SERVICE'
+  assignedTo?: string
+  assignedAt?: string
+  createdAt: string
+  updatedAt: string
+  employeeName?: string
+  employeeId?: string
+}
+
+export type PetrolBill = {
+  id: string
+  vehicleId: string
+  employeeId: string
+  amount: number
+  date: string
+  imageUrl?: string
+  description?: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  approvedBy?: string
+  approvedAt?: string
+  createdAt: string
+  updatedAt: string
+  employeeName?: string
+  employeeIdNumber?: string
+  vehicleNumber?: string
+}
+
+export type GetVehiclesResponse = {
+  success: boolean
+  data?: Vehicle[]
+  error?: string
+}
+
+export type GetVehicleResponse = {
+  success: boolean
+  data?: Vehicle & {
+    petrolBills?: PetrolBill[]
+  }
+  error?: string
+}
+
+export type CreateVehicleRequest = {
+  vehicleNumber: string
+  make: string
+  model: string
+  year?: number
+  type: 'CAR' | 'BIKE' | 'TRUCK' | 'VAN'
+}
+
+export type CreateVehicleResponse = {
+  success: boolean
+  data?: Vehicle
+  message?: string
+  error?: string
+}
+
+export type AssignVehicleRequest = {
+  employeeId: string
+}
+
+export type AssignVehicleResponse = {
+  success: boolean
+  data?: Vehicle
+  message?: string
+  error?: string
+}
+
+export type GetPetrolBillsResponse = {
+  success: boolean
+  data?: PetrolBill[]
+  error?: string
+}
+
+export type CreatePetrolBillRequest = {
+  vehicleId: string
+  amount: number
+  date: string
+  imageUrl?: string
+  description?: string
+}
+
+export type CreatePetrolBillResponse = {
+  success: boolean
+  data?: PetrolBill
+  message?: string
+  error?: string
+}
+
+export type ApprovePetrolBillRequest = {
+  status: 'APPROVED' | 'REJECTED'
+}
+
+export type ApprovePetrolBillResponse = {
+  success: boolean
+  data?: PetrolBill
+  message?: string
+  error?: string
+}
+
+// Vehicle Management API Functions
+export async function getAllVehicles(params?: {
+  status?: string
+  assignedTo?: string
+  type?: string
+}): Promise<GetVehiclesResponse> {
+  try {
+    const searchParams = new URLSearchParams()
+    
+    if (params?.status) searchParams.append('status', params.status)
+    if (params?.assignedTo) searchParams.append('assignedTo', params.assignedTo)
+    if (params?.type) searchParams.append('type', params.type)
+
+    const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/vehicles${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+    
+    const res = await fetch(url, {
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to get vehicles: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('getAllVehicles error:', error)
+    throw error
+  }
+}
+
+export async function getVehicleById(vehicleId: string): Promise<GetVehicleResponse> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/vehicles/${vehicleId}`, {
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to get vehicle: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('getVehicleById error:', error)
+    throw error
+  }
+}
+
+export async function createVehicle(vehicle: CreateVehicleRequest): Promise<CreateVehicleResponse> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/vehicles`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(vehicle),
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to create vehicle: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('createVehicle error:', error)
+    throw error
+  }
+}
+
+export async function assignVehicle(vehicleId: string, data: AssignVehicleRequest): Promise<AssignVehicleResponse> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/vehicles/${vehicleId}/assign`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to assign vehicle: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('assignVehicle error:', error)
+    throw error
+  }
+}
+
+export async function unassignVehicle(vehicleId: string): Promise<AssignVehicleResponse> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/vehicles/${vehicleId}/unassign`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to unassign vehicle: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('unassignVehicle error:', error)
+    throw error
+  }
+}
+
+export async function getEmployeeVehicle(employeeId: string): Promise<GetVehicleResponse> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/vehicles/employee/${employeeId}`, {
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to get employee vehicle: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('getEmployeeVehicle error:', error)
+    throw error
+  }
+}
+
+export async function getAllPetrolBills(params?: {
+  status?: string
+  employeeId?: string
+  vehicleId?: string
+}): Promise<GetPetrolBillsResponse> {
+  try {
+    const searchParams = new URLSearchParams()
+    
+    if (params?.status) searchParams.append('status', params.status)
+    if (params?.employeeId) searchParams.append('employeeId', params.employeeId)
+    if (params?.vehicleId) searchParams.append('vehicleId', params.vehicleId)
+
+    const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/petrol-bills${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+    
+    const res = await fetch(url, {
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to get petrol bills: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('getAllPetrolBills error:', error)
+    throw error
+  }
+}
+
+export async function createPetrolBill(bill: CreatePetrolBillRequest): Promise<CreatePetrolBillResponse> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/petrol-bills`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(bill),
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to create petrol bill: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('createPetrolBill error:', error)
+    throw error
+  }
+}
+
+export async function approvePetrolBill(billId: string, data: ApprovePetrolBillRequest): Promise<ApprovePetrolBillResponse> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/petrol-bills/${billId}/approve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+
+    if (!res.ok) {
+      throw new Error(response.error || `Failed to approve petrol bill: ${res.status}`)
+    }
+
+    return response
+  } catch (error) {
+    console.error('approvePetrolBill error:', error)
+    throw error
+  }
+}

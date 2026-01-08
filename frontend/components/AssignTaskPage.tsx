@@ -16,7 +16,8 @@ import {
   Users,
   Search,
   MapPin,
-  Shield
+  Shield,
+  Car
 } from "lucide-react"
 import { getAllEmployees, Employee, assignTask, CreateTaskRequest, getAllTeams, Team } from "@/lib/server-api"
 
@@ -165,6 +166,15 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Attendance
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-purple-300 text-purple-600 hover:bg-purple-50"
+              onClick={() => window.open('/vehicles', '_blank')}
+            >
+              <Car className="h-4 w-4 mr-2" />
+              Vehicles
             </Button>
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">

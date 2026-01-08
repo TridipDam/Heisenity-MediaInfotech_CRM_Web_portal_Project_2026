@@ -19,7 +19,10 @@ import {
   LogOut,
   Settings,
   Home,
-  FileText
+  FileText,
+  DollarSign,
+  Car,
+  Upload
 } from "lucide-react"
 import { EmployeeSelfAttendance } from "./EmployeeSelfAttendance"
 
@@ -38,11 +41,22 @@ interface EmployeeProfile {
   status: string
 }
 
+interface AssignedVehicle {
+  id: string
+  vehicleNumber: string
+  make: string
+  model: string
+  type: string
+  assignedAt: string
+}
+
 export function StaffPortal({ deviceInfo }: StaffPortalProps) {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null)
+  const [assignedVehicle, setAssignedVehicle] = useState<AssignedVehicle | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'attendance' | 'payroll' | 'vehicle'>('attendance')
 
   useEffect(() => {
     if (status === "loading") return
@@ -62,11 +76,14 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
       const employeeId = (session.user as any).employeeId
       if (!employeeId) return
 
-      // Fetch employee profile from API
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/field-engineers/${employeeId}`)
+      // Fetch employee profile and assigned vehicle
+      const [profileResponse, vehicleResponse] = await Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/field-engineers/${employeeId}`),
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/vehicles/employee/${employeeId}`)
+      ])
       
-      if (response.ok) {
-        const result = await response.json()
+      if (profileResponse.ok) {
+        const result = await profileResponse.json()
         if (result.success && result.data) {
           setEmployeeProfile({
             id: result.data.id,
@@ -103,6 +120,21 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
           isTeamLeader: false,
           status: "ACTIVE"
         })
+      }
+
+      // Fetch assigned vehicle
+      if (vehicleResponse.ok) {
+        const vehicleResult = await vehicleResponse.json()
+        if (vehicleResult.success && vehicleResult.data) {
+          setAssignedVehicle({
+            id: vehicleResult.data.id,
+            vehicleNumber: vehicleResult.data.vehicleNumber,
+            make: vehicleResult.data.make,
+            model: vehicleResult.data.model,
+            type: vehicleResult.data.type,
+            assignedAt: vehicleResult.data.assignedAt
+          })
+        }
       }
     } catch (error) {
       console.error("Error fetching employee profile:", error)
@@ -208,6 +240,47 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
             </div>
           </div>
         </div>
+        
+        {/* Topbar Navigation */}
+        <div className="border-t border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav className="flex space-x-8">
+              <button
+                onClick={() => setActiveTab('attendance')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'attendance'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <MapPin className="h-4 w-4 inline mr-2" />
+                Attendance
+              </button>
+              <button
+                onClick={() => setActiveTab('payroll')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'payroll'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <DollarSign className="h-4 w-4 inline mr-2" />
+                Payroll
+              </button>
+              <button
+                onClick={() => setActiveTab('vehicle')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'vehicle'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Car className="h-4 w-4 inline mr-2" />
+                Vehicle
+              </button>
+            </nav>
+          </div>
+        </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -290,22 +363,133 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
             </Card>
           </div>
 
-          {/* Main Content - Attendance */}
+          {/* Main Content */}
           <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <MapPin className="h-5 w-5 text-blue-500" />
-                  <span>Attendance Management</span>
-                </CardTitle>
-                <p className="text-gray-600">
-                  Mark your attendance and track your location
-                </p>
-              </CardHeader>
-              <CardContent>
-                <EmployeeSelfAttendance deviceInfo={deviceInfo} />
-              </CardContent>
-            </Card>
+            {activeTab === 'attendance' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <MapPin className="h-5 w-5 text-blue-500" />
+                    <span>Attendance Management</span>
+                  </CardTitle>
+                  <p className="text-gray-600">
+                    Mark your attendance and track your location
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <EmployeeSelfAttendance deviceInfo={deviceInfo} />
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === 'payroll' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <DollarSign className="h-5 w-5 text-green-500" />
+                    <span>Payroll Information</span>
+                  </CardTitle>
+                  <p className="text-gray-600">
+                    View your salary details and payment history
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-12">
+                    <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Payroll Information</h3>
+                    <p className="text-gray-600 mb-4">
+                      Your payroll details will be available here once processed by admin.
+                    </p>
+                    <div className="bg-gray-50 rounded-lg p-4 text-left">
+                      <h4 className="font-medium text-gray-900 mb-2">Current Month Status</h4>
+                      <div className="space-y-2 text-sm text-gray-600">
+                        <div className="flex justify-between">
+                          <span>Status:</span>
+                          <Badge variant="outline">Pending</Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Month:</span>
+                          <span>{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === 'vehicle' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Car className="h-5 w-5 text-blue-500" />
+                    <span>Vehicle Management</span>
+                  </CardTitle>
+                  <p className="text-gray-600">
+                    View your assigned vehicle and upload petrol bills
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    {/* Assigned Vehicle Info */}
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-3">Assigned Vehicle</h4>
+                      {assignedVehicle ? (
+                        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                          <div className="flex items-center space-x-3">
+                            <Car className="h-8 w-8 text-blue-600" />
+                            <div>
+                              <h5 className="font-medium text-blue-900">{assignedVehicle.vehicleNumber}</h5>
+                              <p className="text-blue-700 text-sm">
+                                {assignedVehicle.make} {assignedVehicle.model} ({assignedVehicle.type})
+                              </p>
+                              <p className="text-blue-600 text-xs">
+                                Assigned on: {new Date(assignedVehicle.assignedAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 rounded-lg p-4 text-center">
+                          <Car className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                          <p className="text-gray-600">No vehicle assigned</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Petrol Bill Upload */}
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-3">Upload Petrol Bill</h4>
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                        <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-600 mb-2">Upload your petrol bill receipt</p>
+                        <p className="text-xs text-gray-500 mb-4">
+                          Supported formats: JPG, PNG, PDF (Max 5MB)
+                        </p>
+                        <Button variant="outline" disabled>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Choose File
+                        </Button>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Image upload functionality will be integrated with third-party service
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Recent Bills */}
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-3">Recent Bills</h4>
+                      <div className="space-y-2">
+                        <div className="text-center py-8 text-gray-500">
+                          <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                          <p>No bills uploaded yet</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

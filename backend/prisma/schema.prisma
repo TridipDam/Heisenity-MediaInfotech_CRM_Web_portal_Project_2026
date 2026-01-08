@@ -52,6 +52,9 @@ model FieldEngineer {
   attendances         Attendance[]
   attendanceOverrides AttendanceOverride[]
   tasks               Task[]
+  assignedVehicle     Vehicle?
+  petrolBills         PetrolBill[]
+  payrollRecords      PayrollRecord[]
   team                Team?                @relation(fields: [teamId], references: [id])
   assignedAdmin       Admin?               @relation("AdminAssignedTeamLeaders", fields: [assignedBy], references: [id])
   sessions            UserSession[]
@@ -209,4 +212,103 @@ model UserSession {
 enum UserType {
   ADMIN
   EMPLOYEE
+}
+
+model Vehicle {
+  id           String        @id @default(cuid())
+  vehicleNumber String       @unique
+  make         String
+  model        String
+  year         Int?
+  type         VehicleType   @default(CAR)
+  status       VehicleStatus @default(AVAILABLE)
+  assignedTo   String?       @unique
+  assignedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  // Relations
+  employee     FieldEngineer? @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  petrolBills  PetrolBill[]
+
+  @@index([assignedTo])
+  @@index([status])
+  @@map("vehicles")
+}
+
+enum VehicleType {
+  CAR
+  BIKE
+  TRUCK
+  VAN
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  ASSIGNED
+  MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+model PetrolBill {
+  id         String    @id @default(cuid())
+  vehicleId  String
+  employeeId String
+  amount     Decimal   @db.Decimal(10, 2)
+  date       DateTime  @db.Date
+  imageUrl   String?   @db.Text
+  description String?  @db.Text
+  status     BillStatus @default(PENDING)
+  approvedBy String?
+  approvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  
+  // Relations
+  vehicle    Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  employee   FieldEngineer @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@index([employeeId])
+  @@index([date])
+  @@index([status])
+  @@map("petrol_bills")
+}
+
+enum BillStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model PayrollRecord {
+  id           String    @id @default(cuid())
+  employeeId   String
+  month        Int       // 1-12
+  year         Int
+  basicSalary  Decimal   @db.Decimal(10, 2)
+  allowances   Decimal   @db.Decimal(10, 2) @default(0)
+  deductions   Decimal   @db.Decimal(10, 2) @default(0)
+  overtime     Decimal   @db.Decimal(10, 2) @default(0)
+  netSalary    Decimal   @db.Decimal(10, 2)
+  status       PayrollStatus @default(DRAFT)
+  processedBy  String?
+  processedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  // Relations
+  employee     FieldEngineer @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, month, year])
+  @@index([employeeId])
+  @@index([month, year])
+  @@index([status])
+  @@map("payroll_records")
+}
+
+enum PayrollStatus {
+  DRAFT
+  PROCESSED
+  PAID
 }
