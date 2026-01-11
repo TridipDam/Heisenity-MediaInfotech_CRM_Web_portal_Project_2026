@@ -35,7 +35,7 @@ class AuthService {
           return null
         }
 
-        const employee = await prisma.fieldEngineer.findFirst({
+        const employee = await prisma.employee.findFirst({
           where: { 
             AND: [
               { email },
@@ -119,7 +119,7 @@ class AuthService {
   async registerEmployee(name: string, employeeId: string, email: string, password: string, phone?: string, teamId?: string) {
     try {
       // Check if employee already exists
-      const existingEmployee = await prisma.fieldEngineer.findFirst({
+      const existingEmployee = await prisma.employee.findFirst({
         where: {
           OR: [
             { email },
@@ -138,7 +138,7 @@ class AuthService {
       }
 
       // Create employee (password is stored as plain text for now)
-      const employee = await prisma.fieldEngineer.create({
+      const employee = await prisma.employee.create({
         data: {
           name,
           employeeId,

@@ -49,11 +49,18 @@ const navigationItems = [
         description: "Employee time tracking"
     },
     {
-        title: "Attendance Management",
+        title: "Field Engineer",
         url: "/attendance-management",
         icon: Clock,
         badge: null,
         description: "Clock-in/out records"
+    },
+    {
+        title: "InOffice Employee",
+        url: "/inoffice-attendance",
+        icon: Clock,
+        badge: null,
+        description: "In-office attendance management"
     },
     {
         title: "Teams",

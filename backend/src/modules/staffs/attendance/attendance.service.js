@@ -135,144 +135,237 @@ export async function validateEmployeeLocation(employeeId, coordinates) {
     // Normalize config
     const now = new Date();
     // Find employee
-    const employee = await prisma.fieldEngineer.findUnique({ where: { employeeId } });
+    const employee = await prisma.employee.findUnique({ where: { employeeId } });
     if (!employee) {
         return { isValid: false, details: 'Employee not found', code: 'EMPLOYEE_NOT_FOUND' };
     }
-    // Find today's assignment
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dailyLocation = await prisma.dailyLocation.findUnique({
-        where: { employeeId_date: { employeeId: employee.id, date: today } }
-    });
-    if (!dailyLocation) {
-        return { isValid: false, details: 'No assigned location for today', code: 'NO_ASSIGNMENT' };
+
+    // Role-based validation logic
+    if (employee.role === 'IN_OFFICE') {
+        // For in-office employees, no location validation required
+        return {
+            isValid: true,
+            details: 'In-office employee - no location validation required',
+            confidence: 'exact'
+        };
     }
-    // time windows
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    const startMinutes = dailyLocation.startTime.getHours() * 60 + dailyLocation.startTime.getMinutes();
-    const endMinutes = dailyLocation.endTime.getHours() * 60 + dailyLocation.endTime.getMinutes();
-    // Determine assignment type
-    const assignedLat = Number(dailyLocation.latitude);
-    const assignedLon = Number(dailyLocation.longitude);
-    const assignedHasCoords = hasValidCoordinates({ latitude: assignedLat, longitude: assignedLon });
-    const assignedAreaText = (dailyLocation.address || dailyLocation.city || '').toString().trim();
-    
-    // Check if this is a task-based assignment (created by task service)
-    const isTaskBased = dailyLocation.state === "Task Location";
-    
-    // NO TIME RESTRICTIONS for task-based assignments - employees can check in anytime
-    if (isTaskBased) {
-        // Skip time validation entirely for task-based assignments
-        console.log(`Skipping time validation for task-based assignment for employee ${employeeId}`);
-    } else {
-        // Apply time restrictions only for non-task assignments
-        // Strict time enforcement for GPS-based assignments
-        if (assignedHasCoords) {
-            if (currentMinutes < startMinutes || currentMinutes > endMinutes) {
-                return {
-                    isValid: false,
-                    details: `Attendance only allowed between ${dailyLocation.startTime.toLocaleTimeString()} and ${dailyLocation.endTime.toLocaleTimeString()}`,
-                    code: 'TIME_WINDOW_VIOLATION',
-                    allowedLocation: dailyLocation
-                };
-            }
-        }
-        else {
-            // flexible window for area-based assignments
-            const flex = DEFAULT_FLEXIBLE_WINDOW_MINUTES;
-            const flexStart = startMinutes - flex;
-            const flexEnd = Math.max(endMinutes, startMinutes) + flex;
-            if (currentMinutes < flexStart || currentMinutes > flexEnd) {
-                const s = new Date();
-                s.setHours(Math.floor(flexStart / 60), flexStart % 60, 0, 0);
-                const e = new Date();
-                e.setHours(Math.floor(flexEnd / 60), flexEnd % 60, 0, 0);
-                return {
-                    isValid: false,
-                    details: `Attendance allowed between ${s.toLocaleTimeString()} and ${e.toLocaleTimeString()} (flexible window)`,
-                    code: 'TIME_WINDOW_VIOLATION',
-                    allowedLocation: dailyLocation
-                };
-            }
-        }
-    }
-    // If assigned coordinates exist, prefer them (authoritative)
-    if (assignedHasCoords) {
-        const assignedCoords = { latitude: assignedLat, longitude: assignedLon };
-        const radiusToUse = Number(dailyLocation.radius ?? DEFAULT_ATTENDANCE_RADIUS_METERS);
-        const gpsResult = await validateLocationByGPS(coordinates, assignedCoords, radiusToUse);
-        console.info({
-            event: 'validate_gps_attempt',
-            employeeId,
-            assignedCoords,
-            userCoords: coordinates,
-            gpsResult
+
+    // For field engineers, continue with location validation
+    if (employee.role === 'FIELD_ENGINEER') {
+        // Find today's assignment
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dailyLocation = await prisma.dailyLocation.findUnique({
+            where: { employeeId_date: { employeeId: employee.id, date: today } }
         });
-        if (gpsResult.isMatch) {
+        if (!dailyLocation) {
+            return { isValid: false, details: 'No assigned location for today', code: 'NO_ASSIGNMENT' };
+        }
+        // time windows
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        const startMinutes = dailyLocation.startTime.getHours() * 60 + dailyLocation.startTime.getMinutes();
+        const endMinutes = dailyLocation.endTime.getHours() * 60 + dailyLocation.endTime.getMinutes();
+        // Determine assignment type
+        const assignedLat = Number(dailyLocation.latitude);
+        const assignedLon = Number(dailyLocation.longitude);
+        const assignedHasCoords = hasValidCoordinates({ latitude: assignedLat, longitude: assignedLon });
+        const assignedAreaText = (dailyLocation.address || dailyLocation.city || '').toString().trim();
+        
+        // Check if this is a task-based assignment (created by task service)
+        const isTaskBased = dailyLocation.state === "Task Location";
+        
+        // NO TIME RESTRICTIONS for task-based assignments - employees can check in anytime
+        if (isTaskBased) {
+            // Skip time validation entirely for task-based assignments
+            console.log(`Skipping time validation for task-based assignment for employee ${employeeId}`);
+        } else {
+            // Apply time restrictions only for non-task assignments
+            // Strict time enforcement for GPS-based assignments
+            if (assignedHasCoords) {
+                if (currentMinutes < startMinutes || currentMinutes > endMinutes) {
+                    return {
+                        isValid: false,
+                        details: `Attendance only allowed between ${dailyLocation.startTime.toLocaleTimeString()} and ${dailyLocation.endTime.toLocaleTimeString()}`,
+                        code: 'TIME_WINDOW_VIOLATION',
+                        allowedLocation: dailyLocation
+                    };
+                }
+            }
+            else {
+                // flexible window for area-based assignments
+                const flex = DEFAULT_FLEXIBLE_WINDOW_MINUTES;
+                const flexStart = startMinutes - flex;
+                const flexEnd = Math.max(endMinutes, startMinutes) + flex;
+                if (currentMinutes < flexStart || currentMinutes > flexEnd) {
+                    const s = new Date();
+                    s.setHours(Math.floor(flexStart / 60), flexStart % 60, 0, 0);
+                    const e = new Date();
+                    e.setHours(Math.floor(flexEnd / 60), flexEnd % 60, 0, 0);
+                    return {
+                        isValid: false,
+                        details: `Attendance allowed between ${s.toLocaleTimeString()} and ${e.toLocaleTimeString()} (flexible window)`,
+                        code: 'TIME_WINDOW_VIOLATION',
+                        allowedLocation: dailyLocation
+                    };
+                }
+            }
+        }
+        // If assigned coordinates exist, prefer them (authoritative)
+        if (assignedHasCoords) {
+            const assignedCoords = { latitude: assignedLat, longitude: assignedLon };
+            const radiusToUse = Number(dailyLocation.radius ?? DEFAULT_ATTENDANCE_RADIUS_METERS);
+            const gpsResult = await validateLocationByGPS(coordinates, assignedCoords, radiusToUse);
+            console.info({
+                event: 'validate_gps_attempt',
+                employeeId,
+                assignedCoords,
+                userCoords: coordinates,
+                gpsResult
+            });
+            if (gpsResult.isMatch) {
+                return {
+                    isValid: true,
+                    details: gpsResult.details,
+                    distance: gpsResult.distance,
+                    radiusUsed: gpsResult.radiusUsed,
+                    assignedCoords,
+                    confidence: gpsResult.confidence
+                };
+            }
+            // GPS failed: do NOT mark present. Return detailed info to caller
             return {
-                isValid: true,
+                isValid: false,
                 details: gpsResult.details,
+                code: gpsResult.code || 'LOCATION_MISMATCH',
                 distance: gpsResult.distance,
                 radiusUsed: gpsResult.radiusUsed,
                 assignedCoords,
-                confidence: gpsResult.confidence
+                confidence: gpsResult.confidence,
+                allowedLocation: dailyLocation
             };
         }
-        // GPS failed: do NOT mark present. Return detailed info to caller
+        // Assigned has no coordinates -> DO NOT perform forward geocoding at attendance-time.
+        // Reject validation and instruct admin to set precise coordinates.
+        if (assignedAreaText) {
+            return {
+                isValid: false,
+                details: 'Assigned location does not have authoritative coordinates. Please ask your administrator to set latitude and longitude for the assigned location so attendance validation can use precise coordinates.',
+                code: 'ASSIGNED_COORDS_MISSING',
+                allowedLocation: dailyLocation
+            };
+        }
+        // No coords + no area -> task-based (no location enforcement). If admin marked task-based, allow.
         return {
-            isValid: false,
-            details: gpsResult.details,
-            code: gpsResult.code || 'LOCATION_MISMATCH',
-            distance: gpsResult.distance,
-            radiusUsed: gpsResult.radiusUsed,
-            assignedCoords,
-            confidence: gpsResult.confidence,
+            isValid: true,
+            details: 'Task-based assignment (no GPS required)',
+            assignedCoords: null,
+            confidence: 'exact',
             allowedLocation: dailyLocation
         };
     }
-    // Assigned has no coordinates -> DO NOT perform forward geocoding at attendance-time.
-    // Reject validation and instruct admin to set precise coordinates.
-    if (assignedAreaText) {
-        return {
-            isValid: false,
-            details: 'Assigned location does not have authoritative coordinates. Please ask your administrator to set latitude and longitude for the assigned location so attendance validation can use precise coordinates.',
-            code: 'ASSIGNED_COORDS_MISSING',
-            allowedLocation: dailyLocation
-        };
-    }
-    // No coords + no area -> task-based (no location enforcement). If admin marked task-based, allow.
-    return {
-        isValid: true,
-        details: 'Task-based assignment (no GPS required)',
-        assignedCoords: null,
-        confidence: 'exact',
-        allowedLocation: dailyLocation
-    };
+
+    // Default fallback for unknown roles
+    return { isValid: false, details: 'Unknown employee role', code: 'UNKNOWN_ROLE' };
 }
 // Create attendance record with atomic attempt increments and strict rules
 export async function createAttendanceRecord(data) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const employee = await prisma.fieldEngineer.findUnique({ where: { employeeId: data.employeeId } });
+    const employee = await prisma.employee.findUnique({ where: { employeeId: data.employeeId } });
     if (!employee)
         throw new Error('EMPLOYEE_NOT_FOUND');
-    // read existing attendance if any
-    const existing = await prisma.attendance.findUnique({
-        where: { employeeId_date: { employeeId: employee.id, date: today } }
-    });
-    // If coordinates provided, ensure they are in valid range and not 0,0 (which is placeholder)
-    if (data.coordinates) {
-        const lat = Number(data.coordinates.latitude);
-        const lon = Number(data.coordinates.longitude);
-        if (Number.isNaN(lat) || Number.isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-            throw new Error('INVALID_COORDINATES');
+
+    // Role-based logic for attendance creation
+    if (employee.role === 'IN_OFFICE') {
+        // For in-office employees, create attendance without location validation
+        const deviceInfo = getDeviceInfo(data.userAgent);
+        const deviceString = `${deviceInfo.os} - ${deviceInfo.browser} - ${deviceInfo.device}`;
+        
+        if (existing && existing.locked)
+            throw new Error('ATTENDANCE_LOCKED');
+
+        const updateData = {
+            latitude: null, // In-office employees don't need coordinates
+            longitude: null,
+            location: data.locationText || 'Office Location',
+            ipAddress: data.ipAddress,
+            deviceInfo: deviceString,
+            photo: data.photo ?? existing?.photo,
+            status: data.status,
+            source: 'SELF',
+            updatedAt: new Date(),
+            attemptCount: 'ZERO'
+        };
+
+        // Handle check-in/check-out for in-office employees
+        if (data.action === 'check-in') {
+            updateData.clockIn = new Date();
+        } else if (data.action === 'check-out') {
+            updateData.clockOut = new Date();
+        } else {
+            if (!existing?.clockIn && (data.status === 'PRESENT' || data.status === 'LATE')) {
+                updateData.clockIn = new Date();
+            }
         }
-        if (lat === 0 && lon === 0 && !data.bypassLocationValidation && !data.locationText) {
-            // never accept 0,0 as a valid coordinate for non-admin flows
-            throw new Error('INVALID_COORDINATES');
-        }
+
+        const saved = existing
+            ? await prisma.attendance.update({
+                where: { id: existing.id },
+                data: {
+                    ...updateData,
+                    clockIn: updateData.clockIn !== undefined ? updateData.clockIn : existing.clockIn,
+                    clockOut: updateData.clockOut !== undefined ? updateData.clockOut : existing.clockOut
+                }
+            })
+            : await prisma.attendance.create({
+                data: {
+                    employeeId: employee.id,
+                    date: today,
+                    clockIn: updateData.clockIn || (data.status === 'PRESENT' || data.status === 'LATE' ? new Date() : null),
+                    clockOut: updateData.clockOut || null,
+                    latitude: null,
+                    longitude: null,
+                    location: updateData.location,
+                    ipAddress: data.ipAddress,
+                    deviceInfo: deviceString,
+                    photo: data.photo,
+                    status: data.status,
+                    source: 'SELF',
+                    lockedReason: '',
+                    locked: false,
+                    attemptCount: 'ZERO'
+                }
+            });
+
+        return {
+            employeeId: data.employeeId,
+            timestamp: saved.createdAt.toISOString(),
+            location: saved.location || 'Office Location',
+            ipAddress: saved.ipAddress || data.ipAddress || '',
+            deviceInfo: saved.deviceInfo || deviceString || '',
+            photo: saved.photo || data.photo || undefined,
+            status: saved.status
+        };
     }
+    // For field engineers, continue with existing validation logic
+    if (employee.role === 'FIELD_ENGINEER') {
+        // read existing attendance if any
+        const existing = await prisma.attendance.findUnique({
+            where: { employeeId_date: { employeeId: employee.id, date: today } }
+        });
+    
+        // If coordinates provided, ensure they are in valid range and not 0,0 (which is placeholder)
+        if (data.coordinates) {
+            const lat = Number(data.coordinates.latitude);
+            const lon = Number(data.coordinates.longitude);
+            if (Number.isNaN(lat) || Number.isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                throw new Error('INVALID_COORDINATES');
+            }
+            if (lat === 0 && lon === 0 && !data.bypassLocationValidation && !data.locationText) {
+                // never accept 0,0 as a valid coordinate for non-admin flows
+                throw new Error('INVALID_COORDINATES');
+            }
+        }
     // Admin entry path (no coordinates accepted) — require locationText
     if ((!data.coordinates || (data.coordinates.latitude === 0 && data.coordinates.longitude === 0)) && data.locationText) {
         const deviceInfo = getDeviceInfo(data.userAgent);
@@ -626,36 +719,63 @@ export async function createAttendanceRecord(data) {
         photo: saved.photo || data.photo || undefined,
         status: saved.status
     };
+    }
+
+    // Default fallback for unknown roles
+    throw new Error('UNKNOWN_EMPLOYEE_ROLE');
 }
 // Get remaining attempts (updated to numeric)
 export async function getRemainingAttempts(employeeId) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const employee = await prisma.fieldEngineer.findUnique({ where: { employeeId } });
+    const employee = await prisma.employee.findUnique({ where: { employeeId } });
     if (!employee)
         throw new Error('EMPLOYEE_NOT_FOUND');
-    const attendance = await prisma.attendance.findUnique({
-        where: { employeeId_date: { employeeId: employee.id, date: today } }
-    });
-    if (!attendance) {
+
+    // For in-office employees, no attempt limits
+    if (employee.role === 'IN_OFFICE') {
         return { remainingAttempts: MAX_ATTEMPTS, isLocked: false };
     }
-    if (attendance.locked) {
-        return { remainingAttempts: 0, isLocked: true, status: attendance.status };
+
+    // For field engineers, check attempt limits
+    if (employee.role === 'FIELD_ENGINEER') {
+        const attendance = await prisma.attendance.findUnique({
+            where: { employeeId_date: { employeeId: employee.id, date: today } }
+        });
+        if (!attendance) {
+            return { remainingAttempts: MAX_ATTEMPTS, isLocked: false };
+        }
+        if (attendance.locked) {
+            return { remainingAttempts: 0, isLocked: true, status: attendance.status };
+        }
+        const used = attemptCountToNumber(attendance.attemptCount);
+        return { remainingAttempts: Math.max(0, MAX_ATTEMPTS - used), isLocked: false, status: attendance.status };
     }
-    const used = attemptCountToNumber(attendance.attemptCount);
-    return { remainingAttempts: Math.max(0, MAX_ATTEMPTS - used), isLocked: false, status: attendance.status };
+
+    // Default for unknown roles
+    return { remainingAttempts: 0, isLocked: true };
 }
-// Get today's assigned location (unchanged)
+// Get today's assigned location (updated for role-based logic)
 export async function getTodayAssignedLocation(employeeId) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const employee = await prisma.fieldEngineer.findUnique({ where: { employeeId } });
+    const employee = await prisma.employee.findUnique({ where: { employeeId } });
     if (!employee)
         throw new Error('EMPLOYEE_NOT_FOUND');
-    return await prisma.dailyLocation.findUnique({
-        where: { employeeId_date: { employeeId: employee.id, date: today } }
-    });
+
+    // For in-office employees, no assigned location needed
+    if (employee.role === 'IN_OFFICE') {
+        return null;
+    }
+
+    // For field engineers, return assigned location
+    if (employee.role === 'FIELD_ENGINEER') {
+        return await prisma.dailyLocation.findUnique({
+            where: { employeeId_date: { employeeId: employee.id, date: today } }
+        });
+    }
+
+    return null;
 }
 // Expose helper for tests if needed
 export const __test_helpers = {

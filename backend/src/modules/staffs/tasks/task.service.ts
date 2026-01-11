@@ -33,7 +33,7 @@ export interface TaskRecord {
 export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
   try {
     // Find the employee by employeeId
-    const employee = await prisma.fieldEngineer.findUnique({
+    const employee = await prisma.employee.findUnique({
       where: { employeeId: data.employeeId }
     });
 
@@ -239,7 +239,7 @@ export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
 // Get tasks for an employee
 export async function getEmployeeTasks(employeeId: string, status?: TaskStatus): Promise<TaskRecord[]> {
   try {
-    const employee = await prisma.fieldEngineer.findUnique({
+    const employee = await prisma.employee.findUnique({
       where: { employeeId }
     });
 
@@ -441,7 +441,7 @@ export async function getAllTasks(page: number = 1, limit: number = 50, status?:
 // Function to manually update attendance status for an employee
 export async function updateAttendanceStatus(employeeId: string, status: 'PRESENT' | 'LATE' | 'ABSENT' | 'MARKDOWN'): Promise<void> {
   try {
-    const employee = await prisma.fieldEngineer.findUnique({
+    const employee = await prisma.employee.findUnique({
       where: { employeeId }
     });
 
@@ -482,7 +482,7 @@ export async function updateAttendanceStatus(employeeId: string, status: 'PRESEN
 // Function to mark task as completed and update task end time (without affecting attendance clock out)
 export async function completeTask(taskId: string, employeeId: string): Promise<void> {
   try {
-    const employee = await prisma.fieldEngineer.findUnique({
+    const employee = await prisma.employee.findUnique({
       where: { employeeId }
     });
 
@@ -528,7 +528,7 @@ export async function completeTask(taskId: string, employeeId: string): Promise<
 }
 export async function resetAttendanceAttempts(employeeId: string): Promise<void> {
   try {
-    const employee = await prisma.fieldEngineer.findUnique({
+    const employee = await prisma.employee.findUnique({
       where: { employeeId }
     });
 

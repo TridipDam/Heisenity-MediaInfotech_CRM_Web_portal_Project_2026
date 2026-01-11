@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs'
 export const generateEmployeeId = async (): Promise<string> => {
   try {
     // Get the latest employee by employeeId
-    const latestEmployee = await prisma.fieldEngineer.findFirst({
+    const latestEmployee = await prisma.employee.findFirst({
       orderBy: {
         employeeId: 'desc'
       }
@@ -52,7 +52,7 @@ export const getAllEmployees = async (req: Request, res: Response) => {
       whereClause.status = status
     }
 
-    const employees = await prisma.fieldEngineer.findMany({
+    const employees = await prisma.employee.findMany({
       where: whereClause,
       orderBy: {
         createdAt: 'desc'
@@ -75,7 +75,7 @@ export const getAllEmployees = async (req: Request, res: Response) => {
     })
 
     // Get total count for pagination
-    const totalCount = await prisma.fieldEngineer.count({
+    const totalCount = await prisma.employee.count({
       where: whereClause
     })
 
@@ -114,7 +114,7 @@ export const createEmployee = async (req: Request, res: Response) => {
     }
 
     // Check if email already exists
-    const existingEmployee = await prisma.fieldEngineer.findUnique({
+    const existingEmployee = await prisma.employee.findUnique({
       where: { email }
     })
 
@@ -132,7 +132,7 @@ export const createEmployee = async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Create employee
-    const employee = await prisma.fieldEngineer.create({
+    const employee = await prisma.employee.create({
       data: {
         name,
         employeeId,
@@ -186,7 +186,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
     }
 
     // Check if employee exists
-    const existingEmployee = await prisma.fieldEngineer.findUnique({
+    const existingEmployee = await prisma.employee.findUnique({
       where: { id }
     })
 
@@ -199,7 +199,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
 
     // Check if email is being changed and if it already exists
     if (email && email !== existingEmployee.email) {
-      const emailExists = await prisma.fieldEngineer.findUnique({
+      const emailExists = await prisma.employee.findUnique({
         where: { email }
       })
 
@@ -224,7 +224,7 @@ export const updateEmployee = async (req: Request, res: Response) => {
     }
 
     // Update employee
-    const updatedEmployee = await prisma.fieldEngineer.update({
+    const updatedEmployee = await prisma.employee.update({
       where: { id },
       data: updateData,
       select: {
@@ -268,7 +268,7 @@ export const deleteEmployee = async (req: Request, res: Response) => {
     }
 
     // Check if employee exists
-    const existingEmployee = await prisma.fieldEngineer.findUnique({
+    const existingEmployee = await prisma.employee.findUnique({
       where: { id }
     })
 
@@ -280,7 +280,7 @@ export const deleteEmployee = async (req: Request, res: Response) => {
     }
 
     // Delete employee (this will cascade delete related records)
-    await prisma.fieldEngineer.delete({
+    await prisma.employee.delete({
       where: { id }
     })
 
@@ -309,7 +309,7 @@ export const getEmployeeById = async (req: Request, res: Response) => {
       })
     }
 
-    const employee = await prisma.fieldEngineer.findUnique({
+    const employee = await prisma.employee.findUnique({
       where: { id },
       select: {
         id: true,

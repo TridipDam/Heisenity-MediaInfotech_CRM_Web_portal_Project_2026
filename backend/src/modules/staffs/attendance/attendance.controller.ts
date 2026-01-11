@@ -27,7 +27,7 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
 
     if (employeeId) {
       // Find employee by employeeId first
-      const employee = await prisma.fieldEngineer.findUnique({
+      const employee = await prisma.employee.findUnique({
         where: { employeeId: employeeId as string }
       })
       if (employee) {
@@ -76,7 +76,8 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
             email: true,
             phone: true,
             teamId: true,
-            isTeamLeader: true
+            isTeamLeader: true,
+            role: true
           }
         },
         assignedTask: {
@@ -111,6 +112,7 @@ export const getAttendanceRecords = async (req: Request, res: Response) => {
       phone: attendance.employee.phone,
       teamId: attendance.employee.teamId,
       isTeamLeader: attendance.employee.isTeamLeader,
+      role: attendance.employee.role,
       date: attendance.date.toISOString().split('T')[0],
       clockIn: attendance.clockIn?.toISOString(),
       clockOut: attendance.clockOut?.toISOString(),
@@ -342,8 +344,8 @@ export const deleteAttendanceRecord = async (req: Request, res: Response) => {
       where: { id }
     })
 
-    // Delete the employee from field_engineer table
-    await prisma.fieldEngineer.delete({
+    // Delete the employee from employee table
+    await prisma.employee.delete({
       where: { id: existingRecord.employeeId }
     })
 

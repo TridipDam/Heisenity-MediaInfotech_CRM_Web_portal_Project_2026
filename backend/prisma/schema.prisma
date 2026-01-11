@@ -18,7 +18,7 @@ model Admin {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   adminOverrides      AttendanceOverride[]
-  assignedTeamLeaders FieldEngineer[]      @relation("AdminAssignedTeamLeaders")
+  assignedTeamLeaders Employee[]      @relation("AdminAssignedTeamLeaders")
   sessions            UserSession[]
 
   @@map("admins")
@@ -30,24 +30,32 @@ model Team {
   description String?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
-  members     FieldEngineer[]
+  members     Employee[]
 
   @@map("teams")
 }
 
-model FieldEngineer {
-  id                  String               @id @default(cuid())
-  name                String
-  employeeId          String               @unique
-  email               String               @unique
-  password            String
-  phone               String?
-  teamId              String?
-  isTeamLeader        Boolean              @default(false)
-  assignedBy          String?
-  status              String               @default("ACTIVE")
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
+model Employee {
+  id         String  @id @default(cuid())
+  name       String
+  employeeId String  @unique
+  email      String  @unique
+  password   String
+  phone      String?
+
+  role EmployeeRole @default(FIELD_ENGINEER)
+
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /**
+   * ---------- FE specific (optional) ----------
+   */
+  teamId       String?
+  isTeamLeader Boolean @default(false)
+  assignedBy   String?
+
   dailyLocations      DailyLocation[]
   attendances         Attendance[]
   attendanceOverrides AttendanceOverride[]
@@ -55,13 +63,23 @@ model FieldEngineer {
   assignedVehicle     Vehicle?
   petrolBills         PetrolBill[]
   payrollRecords      PayrollRecord[]
-  team                Team?                @relation(fields: [teamId], references: [id])
-  assignedAdmin       Admin?               @relation("AdminAssignedTeamLeaders", fields: [assignedBy], references: [id])
-  sessions            UserSession[]
+
+  /**
+   * ---------- Relations ----------
+   */
+  team Team? @relation(fields: [teamId], references: [id])
+  assignedAdmin  Admin? @relation("AdminAssignedTeamLeaders", fields: [assignedBy], references: [id])
+
+  sessions UserSession[]
 
   @@index([teamId])
-  @@index([assignedBy], map: "field_engineers_assignedBy_fkey")
-  @@map("field_engineers")
+  @@index([assignedBy], map: "employees_assignedBy_fkey")
+  @@map("employees")
+}
+
+enum EmployeeRole {
+  FIELD_ENGINEER
+  IN_OFFICE
 }
 
 model DailyLocation {
@@ -79,37 +97,37 @@ model DailyLocation {
   assignedBy String
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
-  employee   FieldEngineer @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, date])
   @@map("daily_locations")
 }
 
 model Attendance {
-  id           String           @id @default(cuid())
-  date         DateTime         @db.Date
-  clockIn      DateTime?
-  clockOut     DateTime?
-  status       AttendanceStatus @default(PRESENT)
-  location     String?          @db.Text
-  ipAddress    String?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  attemptCount AttemptCount     @default(ZERO)
-  deviceInfo   String?
-  latitude     Decimal?         @db.Decimal(10, 8)
-  locked       Boolean          @default(false)
-  lockedReason String?          @db.Text
-  longitude    Decimal?         @db.Decimal(11, 8)
-  photo        String?          @db.LongText
-  taskId       String?
+  id            String           @id @default(cuid())
+  date          DateTime         @db.Date
+  clockIn       DateTime?
+  clockOut      DateTime?
+  status        AttendanceStatus @default(PRESENT)
+  location      String?          @db.Text
+  ipAddress     String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  attemptCount  AttemptCount     @default(ZERO)
+  deviceInfo    String?
+  latitude      Decimal?         @db.Decimal(10, 8)
+  locked        Boolean          @default(false)
+  lockedReason  String?          @db.Text
+  longitude     Decimal?         @db.Decimal(11, 8)
+  photo         String?          @db.LongText
+  taskId        String?
   taskStartTime String?
   taskEndTime   String?
   taskLocation  String?
-  source       AttendanceSource @default(SELF)
-  employeeId   String
-  employee     FieldEngineer    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  assignedTask Task?            @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  source        AttendanceSource @default(SELF)
+  employeeId    String
+  employee      Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  assignedTask  Task?            @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   @@unique([employeeId, date])
   @@index([date])
@@ -128,7 +146,7 @@ model AttendanceOverride {
   reason     String           @db.Text
   timestamp  DateTime         @default(now())
   admin      Admin            @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  employee   FieldEngineer    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([employeeId])
   @@index([adminId])
@@ -162,7 +180,7 @@ model Task {
   status      TaskStatus    @default(PENDING)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
-  employee    FieldEngineer @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   attendances Attendance[]
 
   @@index([employeeId])
@@ -186,21 +204,21 @@ enum AttemptCount {
 }
 
 model UserSession {
-  id           String        @id @default(cuid())
-  sessionToken String        @unique
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
   adminId      String?
   employeeId   String?
   userType     UserType
   deviceInfo   String?
   ipAddress    String?
-  isActive     Boolean       @default(true)
-  lastActivity DateTime      @default(now())
-  createdAt    DateTime      @default(now())
+  isActive     Boolean  @default(true)
+  lastActivity DateTime @default(now())
+  createdAt    DateTime @default(now())
   expiresAt    DateTime
-  
+
   // Relations
-  admin        Admin?        @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  employee     FieldEngineer? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  admin    Admin?         @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([adminId])
   @@index([employeeId])
@@ -215,21 +233,21 @@ enum UserType {
 }
 
 model Vehicle {
-  id           String        @id @default(cuid())
-  vehicleNumber String       @unique
-  make         String
-  model        String
-  year         Int?
-  type         VehicleType   @default(CAR)
-  status       VehicleStatus @default(AVAILABLE)
-  assignedTo   String?       @unique
-  assignedAt   DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  
+  id            String        @id @default(cuid())
+  vehicleNumber String        @unique
+  make          String
+  model         String
+  year          Int?
+  type          VehicleType   @default(CAR)
+  status        VehicleStatus @default(AVAILABLE)
+  assignedTo    String?       @unique
+  assignedAt    DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
   // Relations
-  employee     FieldEngineer? @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
-  petrolBills  PetrolBill[]
+  employee    Employee? @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  petrolBills PetrolBill[]
 
   @@index([assignedTo])
   @@index([status])
@@ -251,22 +269,22 @@ enum VehicleStatus {
 }
 
 model PetrolBill {
-  id         String    @id @default(cuid())
-  vehicleId  String
-  employeeId String
-  amount     Decimal   @db.Decimal(10, 2)
-  date       DateTime  @db.Date
-  imageUrl   String?   @db.Text
-  description String?  @db.Text
-  status     BillStatus @default(PENDING)
-  approvedBy String?
-  approvedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  
+  id          String     @id @default(cuid())
+  vehicleId   String
+  employeeId  String
+  amount      Decimal    @db.Decimal(10, 2)
+  date        DateTime   @db.Date
+  imageUrl    String?    @db.Text
+  description String?    @db.Text
+  status      BillStatus @default(PENDING)
+  approvedBy  String?
+  approvedAt  DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
   // Relations
-  vehicle    Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  employee   FieldEngineer @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  vehicle  Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([vehicleId])
   @@index([employeeId])
@@ -282,23 +300,23 @@ enum BillStatus {
 }
 
 model PayrollRecord {
-  id           String    @id @default(cuid())
-  employeeId   String
-  month        Int       // 1-12
-  year         Int
-  basicSalary  Decimal   @db.Decimal(10, 2)
-  allowances   Decimal   @db.Decimal(10, 2) @default(0)
-  deductions   Decimal   @db.Decimal(10, 2) @default(0)
-  overtime     Decimal   @db.Decimal(10, 2) @default(0)
-  netSalary    Decimal   @db.Decimal(10, 2)
-  status       PayrollStatus @default(DRAFT)
-  processedBy  String?
-  processedAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  
+  id          String        @id @default(cuid())
+  employeeId  String
+  month       Int // 1-12
+  year        Int
+  basicSalary Decimal       @db.Decimal(10, 2)
+  allowances  Decimal       @default(0) @db.Decimal(10, 2)
+  deductions  Decimal       @default(0) @db.Decimal(10, 2)
+  overtime    Decimal       @default(0) @db.Decimal(10, 2)
+  netSalary   Decimal       @db.Decimal(10, 2)
+  status      PayrollStatus @default(DRAFT)
+  processedBy String?
+  processedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
   // Relations
-  employee     FieldEngineer @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([employeeId, month, year])
   @@index([employeeId])
@@ -312,15 +330,16 @@ enum PayrollStatus {
   PROCESSED
   PAID
 }
+
 model AdminNotification {
-  id        String                 @id @default(cuid())
+  id        String                @id @default(cuid())
   type      AdminNotificationType
   title     String
-  message   String                 @db.Text
-  data      String?                @db.Text // JSON data
-  isRead    Boolean                @default(false)
-  createdAt DateTime               @default(now())
-  updatedAt DateTime               @updatedAt
+  message   String                @db.Text
+  data      String?               @db.Text // JSON data
+  isRead    Boolean               @default(false)
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
 
   @@index([isRead])
   @@index([type])

@@ -7,7 +7,7 @@ export class EmployeeIdGeneratorService {
   static async generateNextEmployeeId(): Promise<string> {
     try {
       // Get all existing employee IDs that match the EMP pattern
-      const existingEmployees = await prisma.fieldEngineer.findMany({
+      const existingEmployees = await prisma.employee.findMany({
         select: {
           employeeId: true
         },
@@ -50,7 +50,7 @@ export class EmployeeIdGeneratorService {
    */
   static async isEmployeeIdAvailable(employeeId: string): Promise<boolean> {
     try {
-      const existingEmployee = await prisma.fieldEngineer.findUnique({
+      const existingEmployee = await prisma.employee.findUnique({
         where: {
           employeeId: employeeId
         }
