@@ -37,7 +37,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const isEmployeePage = pathname === '/employee-attendance' || pathname === '/staff-portal'
   
   // Check if user is employee
-  const isEmployee = session?.user && (session.user as CustomUser).userType === 'employee'
+  const isEmployee = session?.user && (session.user as CustomUser).userType === 'EMPLOYEE'
 
   // For auth pages or employee attendance page, don't show sidebar
   if (isAuthPage || isEmployeePage) {

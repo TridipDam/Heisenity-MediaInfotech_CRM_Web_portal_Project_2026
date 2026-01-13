@@ -125,7 +125,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     // Fetch pending leave applications count for admin
     React.useEffect(() => {
         const fetchPendingLeaveCount = async () => {
-            if (!session?.user || (session.user as any).userType !== 'admin') return
+            if (!session?.user || (session.user as any).userType !== 'ADMIN') return
             
             try {
                 const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/leave/applications`)
@@ -153,7 +153,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
         const userType = (session.user as any).userType
         
-        if (userType === 'employee') {
+        if (userType === 'EMPLOYEE') {
             // Employees can see Attendance and Attendance Management
             return navigationItems.filter(item => 
                 item.url === '/attendance' || item.url === '/attendance-management'
@@ -295,7 +295,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                             </span>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-muted-foreground truncate">
-                                    {(session.user as any).userType === 'admin' ? 'Admin' : 'Employee'}
+                                    {(session.user as any).userType === 'ADMIN' ? 'Admin' : 'Employee'}
                                 </span>
                                 {((session.user as any).employeeId || (session.user as any).adminId) && (
                                     <Badge variant="outline" className="text-xs px-1.5 py-0.5">

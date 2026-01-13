@@ -76,7 +76,7 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
   useEffect(() => {
     if (status === "loading") return
 
-    if (!session || (session.user as { userType?: string })?.userType !== "employee") {
+    if (!session || (session.user as { userType?: string })?.userType !== "EMPLOYEE") {
       router.push("/")
       return
     }

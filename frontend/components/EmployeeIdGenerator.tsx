@@ -17,7 +17,7 @@ import {
   Eye
 } from "lucide-react"
 import { 
-  generateNextEmployeeId, 
+  getNextEmployeeId, 
   checkEmployeeIdAvailability, 
   getNextAvailableEmployeeIds,
   validateEmployeeIdFormat 

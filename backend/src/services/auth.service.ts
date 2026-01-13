@@ -5,7 +5,7 @@ import { sessionService } from './session.service'
 class AuthService {
   async authenticate(email: string, password: string, employeeId?: string, adminId?: string, userType?: string, deviceInfo?: string, ipAddress?: string) {
     try {
-      if (userType === 'admin') {
+      if (userType?.toLowerCase() === 'admin') {
         const admin = await prisma.admin.findFirst({
           where: { 
             AND: [
@@ -27,11 +27,14 @@ class AuthService {
           email: admin.email,
           name: admin.name,
           adminId: admin.adminId,
-          userType: 'admin',
+          userType: 'ADMIN',
           sessionToken: session.sessionToken
         }
-      } else if (userType === 'employee') {
+      } else if (userType?.toLowerCase() === 'employee') {
+        console.log('Employee authentication attempt:', { email, employeeId, userType })
+        
         if (!employeeId) {
+          console.log('Employee authentication failed: No employeeId provided')
           return null
         }
 
@@ -44,19 +47,32 @@ class AuthService {
           }
         })
 
-        if (!employee || !await bcrypt.compare(password, employee.password)) {
+        console.log('Employee found:', employee ? { id: employee.id, email: employee.email, employeeId: employee.employeeId } : 'No employee found')
+
+        if (!employee) {
+          console.log('Employee authentication failed: Employee not found')
+          return null
+        }
+
+        const passwordMatch = await bcrypt.compare(password, employee.password)
+        console.log('Password match:', passwordMatch)
+
+        if (!passwordMatch) {
+          console.log('Employee authentication failed: Password mismatch')
           return null
         }
 
         // Create session for employee
         const session = await sessionService.createSession(employee.id, 'EMPLOYEE', deviceInfo, ipAddress)
 
+        console.log('Employee authentication successful:', { id: employee.id, employeeId: employee.employeeId })
+
         return {
           id: employee.id,
           email: employee.email,
           name: employee.name,
           employeeId: employee.employeeId,
-          userType: 'employee',
+          userType: 'EMPLOYEE',
           sessionToken: session.sessionToken
         }
       }
@@ -108,7 +124,7 @@ class AuthService {
         name: admin.name,
         email: admin.email,
         adminId: admin.adminId,
-        userType: 'admin'
+        userType: 'ADMIN'
       }
     } catch (error) {
       console.error('Admin registration error:', error)
@@ -157,7 +173,7 @@ class AuthService {
         name: employee.name,
         email: employee.email,
         employeeId: employee.employeeId,
-        userType: 'employee'
+        userType: 'EMPLOYEE'
       }
     } catch (error) {
       console.error('Employee registration error:', error)

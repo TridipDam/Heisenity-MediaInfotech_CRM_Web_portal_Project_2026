@@ -17,10 +17,10 @@ export default function RootPage() {
       const userType = (session.user as any)?.userType
       console.log('Root page - User type:', userType)
       
-      if (userType === 'admin') {
+      if (userType === 'ADMIN') {
         console.log('Root page - Redirecting admin to dashboard')
         router.push('/dashboard')
-      } else if (userType === 'employee') {
+      } else if (userType === 'EMPLOYEE') {
         console.log('Root page - Redirecting employee to staff-portal')
         router.push('/staff-portal')
       }
@@ -33,7 +33,7 @@ export default function RootPage() {
   const userProfile = session?.user ? {
     name: session.user.name || "User",
     email: session.user.email || "",
-    role: (session.user as any).userType === 'admin' ? 'Administrator' : 'Employee',
+    role: (session.user as any).userType === 'ADMIN' ? 'Administrator' : 'Employee',
     avatar: "/api/placeholder/40/40",
     employeeId: (session.user as any).employeeId
   } : undefined
@@ -41,9 +41,9 @@ export default function RootPage() {
   const handleGetStarted = (type?: string) => {
     if (isLoggedIn) {
       const userType = (session?.user as any)?.userType
-      if (userType === 'admin') {
+      if (userType === 'ADMIN') {
         router.push("/dashboard")
-      } else if (userType === 'employee') {
+      } else if (userType === 'EMPLOYEE') {
         router.push("/staff-portal")
       }
     } else {

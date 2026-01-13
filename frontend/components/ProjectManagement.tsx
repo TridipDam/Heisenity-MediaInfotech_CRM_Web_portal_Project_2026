@@ -814,7 +814,7 @@ export function ProjectManagement() {
                         priority: project.priority || 'MEDIUM',
                         budget: project.budget?.toString() || '',
                         projectManager: project.projectManager || '',
-                        tags: project.tags?.join(', ') || ''
+                        tags: (Array.isArray(project.tags) ? project.tags.join(', ') : '') || ''
                       })
                       setIsEditDialogOpen(true)
                     }}
@@ -1105,7 +1105,7 @@ export function ProjectManagement() {
                       </div>
                     )}
 
-                    {selectedProject.tags && selectedProject.tags.length > 0 && (
+                    {selectedProject.tags && Array.isArray(selectedProject.tags) && selectedProject.tags.length > 0 && (
                       <div>
                         <Label className="text-sm font-medium text-slate-600">Tags</Label>
                         <div className="flex flex-wrap gap-1 mt-1">

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useSession } from "next-auth/react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -24,21 +25,23 @@ interface AttendanceApprovalPopupProps {
   isOpen: boolean
   onClose: () => void
   data: AttendanceApprovalData | null
+  onActionComplete?: () => void // Add callback for when action is completed
 }
 
-export function AttendanceApprovalPopup({ isOpen, onClose, data }: AttendanceApprovalPopupProps) {
+export function AttendanceApprovalPopup({ isOpen, onClose, data, onActionComplete }: AttendanceApprovalPopupProps) {
+  const { data: session } = useSession()
   const [isApproving, setIsApproving] = React.useState(false)
   const [isRejecting, setIsRejecting] = React.useState(false)
   const [rejectionReason, setRejectionReason] = React.useState("")
   const [showRejectForm, setShowRejectForm] = React.useState(false)
 
   const handleApprove = async () => {
-    if (!data) return
+    if (!data || !session?.user) return
 
     setIsApproving(true)
     try {
-      // Get admin ID from session/auth context
-      const adminId = "admin-id" // This should come from your auth context
+      // Get admin ID from session
+      const adminId = (session.user as any).adminId || session.user.id
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/attendance/${data.attendanceId}/approve`, {
         method: 'POST',
@@ -55,6 +58,7 @@ export function AttendanceApprovalPopup({ isOpen, onClose, data }: AttendanceApp
 
       if (result.success) {
         showToast.success('Attendance approved successfully')
+        onActionComplete?.() // Trigger refresh
         onClose()
       } else {
         showToast.error(result.error || 'Failed to approve attendance')
@@ -68,15 +72,15 @@ export function AttendanceApprovalPopup({ isOpen, onClose, data }: AttendanceApp
   }
 
   const handleReject = async () => {
-    if (!data || !rejectionReason.trim()) {
+    if (!data || !rejectionReason.trim() || !session?.user) {
       showToast.error('Please provide a reason for rejection')
       return
     }
 
     setIsRejecting(true)
     try {
-      // Get admin ID from session/auth context
-      const adminId = "admin-id" // This should come from your auth context
+      // Get admin ID from session
+      const adminId = (session.user as any).adminId || session.user.id
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/attendance/${data.attendanceId}/reject`, {
         method: 'POST',
@@ -93,6 +97,7 @@ export function AttendanceApprovalPopup({ isOpen, onClose, data }: AttendanceApp
 
       if (result.success) {
         showToast.success('Attendance rejected successfully')
+        onActionComplete?.() // Trigger refresh
         onClose()
         setRejectionReason("")
         setShowRejectForm(false)

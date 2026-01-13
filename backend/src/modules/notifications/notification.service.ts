@@ -165,4 +165,38 @@ export class NotificationService {
       }
     }
   }
+
+  // Remove attendance approval notification when approved/rejected
+  async removeAttendanceApprovalNotification(attendanceId: string) {
+    try {
+      // Find and delete the original approval request notification using JSON path query
+      const deletedNotifications = await prisma.adminNotification.deleteMany({
+        where: {
+          AND: [
+            { type: 'ATTENDANCE_APPROVAL_REQUEST' },
+            {
+              OR: [
+                { data: { contains: `"attendanceId":"${attendanceId}"` } },
+                { data: { contains: `"attendanceId": "${attendanceId}"` } }
+              ]
+            }
+          ]
+        }
+      })
+
+      console.log(`Removed ${deletedNotifications.count} attendance approval notification(s) for attendance ID: ${attendanceId}`)
+      
+      return {
+        success: true,
+        message: 'Attendance approval notification removed',
+        count: deletedNotifications.count
+      }
+    } catch (error) {
+      console.error('Error removing attendance approval notification:', error)
+      return {
+        success: false,
+        error: 'Failed to remove attendance approval notification'
+      }
+    }
+  }
 }

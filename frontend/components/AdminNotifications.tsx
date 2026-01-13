@@ -1,12 +1,13 @@
-"use client"
-
 import * as React from "react"
+import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import { 
   Bell, 
   BellRing, 
@@ -17,13 +18,17 @@ import {
   User, 
   X,
   Trash2,
-  MarkAsUnreadIcon
+  MarkAsUnreadIcon,
+  Calendar,
+  Camera,
+  Check,
+  XCircle
 } from "lucide-react"
 import { showToast } from "@/lib/toast-utils"
 
 interface AdminNotification {
   id: string
-  type: 'VEHICLE_UNASSIGNED' | 'TASK_COMPLETED' | 'ATTENDANCE_ALERT'
+  type: 'VEHICLE_UNASSIGNED' | 'TASK_COMPLETED' | 'ATTENDANCE_ALERT' | 'ATTENDANCE_APPROVAL_REQUEST' | 'ATTENDANCE_APPROVED' | 'ATTENDANCE_REJECTED'
   title: string
   message: string
   data?: {
@@ -31,8 +36,13 @@ interface AdminNotification {
     vehicleNumber?: string
     employeeId?: string
     employeeName?: string
+    employeeRole?: string
     checkoutTime?: string
+    checkInTime?: string
     location?: string
+    attendanceId?: string
+    status?: string
+    photo?: string
   }
   isRead: boolean
   createdAt: string
@@ -51,6 +61,12 @@ const getNotificationIcon = (type: string) => {
       return <CheckCircle className="h-4 w-4" />
     case 'ATTENDANCE_ALERT':
       return <Clock className="h-4 w-4" />
+    case 'ATTENDANCE_APPROVAL_REQUEST':
+      return <User className="h-4 w-4" />
+    case 'ATTENDANCE_APPROVED':
+      return <Check className="h-4 w-4" />
+    case 'ATTENDANCE_REJECTED':
+      return <XCircle className="h-4 w-4" />
     default:
       return <Bell className="h-4 w-4" />
   }
@@ -64,15 +80,26 @@ const getNotificationColor = (type: string) => {
       return "bg-green-50 text-green-700 border-green-200"
     case 'ATTENDANCE_ALERT':
       return "bg-yellow-50 text-yellow-700 border-yellow-200"
+    case 'ATTENDANCE_APPROVAL_REQUEST':
+      return "bg-orange-50 text-orange-700 border-orange-200"
+    case 'ATTENDANCE_APPROVED':
+      return "bg-green-50 text-green-700 border-green-200"
+    case 'ATTENDANCE_REJECTED':
+      return "bg-red-50 text-red-700 border-red-200"
     default:
       return "bg-gray-50 text-gray-700 border-gray-200"
   }
 }
 
 export function AdminNotifications({ onClose }: AdminNotificationsProps) {
+  const { data: session } = useSession()
   const [notifications, setNotifications] = React.useState<AdminNotification[]>([])
   const [loading, setLoading] = React.useState(true)
   const [selectedNotification, setSelectedNotification] = React.useState<AdminNotification | null>(null)
+  const [isApproving, setIsApproving] = React.useState(false)
+  const [isRejecting, setIsRejecting] = React.useState(false)
+  const [rejectionReason, setRejectionReason] = React.useState("")
+  const [showRejectForm, setShowRejectForm] = React.useState(false)
 
   // Fetch notifications
   React.useEffect(() => {
@@ -161,6 +188,87 @@ export function AdminNotifications({ onClose }: AdminNotificationsProps) {
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
     return date.toLocaleDateString()
+  }
+
+  const handleApproveAttendance = async (attendanceId: string) => {
+    if (!session?.user) return
+
+    setIsApproving(true)
+    try {
+      const adminId = (session.user as any).adminId || session.user.id
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/attendance/${attendanceId}/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          adminId,
+          reason: 'Approved by admin'
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        showToast.success('Attendance approved successfully')
+        // Immediately remove the notification from the list
+        setNotifications(prev => prev.filter(n => n.data?.attendanceId !== attendanceId))
+        setSelectedNotification(null)
+        // Also refresh to get any new notifications
+        fetchNotifications()
+      } else {
+        showToast.error(result.error || 'Failed to approve attendance')
+      }
+    } catch (error) {
+      console.error('Error approving attendance:', error)
+      showToast.error('Failed to approve attendance')
+    } finally {
+      setIsApproving(false)
+    }
+  }
+
+  const handleRejectAttendance = async (attendanceId: string) => {
+    if (!session?.user || !rejectionReason.trim()) {
+      showToast.error('Please provide a reason for rejection')
+      return
+    }
+
+    setIsRejecting(true)
+    try {
+      const adminId = (session.user as any).adminId || session.user.id
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/attendance/${attendanceId}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          adminId,
+          reason: rejectionReason
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        showToast.success('Attendance rejected successfully')
+        // Immediately remove the notification from the list
+        setNotifications(prev => prev.filter(n => n.data?.attendanceId !== attendanceId))
+        setSelectedNotification(null)
+        setRejectionReason("")
+        setShowRejectForm(false)
+        // Also refresh to get any new notifications
+        fetchNotifications()
+      } else {
+        showToast.error(result.error || 'Failed to reject attendance')
+      }
+    } catch (error) {
+      console.error('Error rejecting attendance:', error)
+      showToast.error('Failed to reject attendance')
+    } finally {
+      setIsRejecting(false)
+    }
   }
 
   const unreadCount = notifications.filter(n => !n.isRead).length
@@ -269,6 +377,38 @@ export function AdminNotifications({ onClose }: AdminNotificationsProps) {
                                 </span>
                               )}
                             </div>
+                            
+                            {/* Inline Accept/Reject buttons for attendance approval */}
+                            {notification.type === 'ATTENDANCE_APPROVAL_REQUEST' && notification.data?.attendanceId && (
+                              <div className="flex gap-2 mt-3">
+                                <Button
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleApproveAttendance(notification.data!.attendanceId!)
+                                  }}
+                                  disabled={isApproving}
+                                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 text-xs"
+                                >
+                                  {isApproving ? 'Approving...' : 'Accept'}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedNotification(notification)
+                                    setShowRejectForm(true)
+                                    if (!notification.isRead) {
+                                      markAsRead(notification.id)
+                                    }
+                                  }}
+                                  className="px-3 py-1 text-xs"
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         </div>
                         <Button
@@ -294,7 +434,11 @@ export function AdminNotifications({ onClose }: AdminNotificationsProps) {
       </Card>
 
       {/* Notification Detail Dialog */}
-      <Dialog open={!!selectedNotification} onOpenChange={() => setSelectedNotification(null)}>
+      <Dialog open={!!selectedNotification} onOpenChange={() => {
+        setSelectedNotification(null)
+        setShowRejectForm(false)
+        setRejectionReason("")
+      }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -323,6 +467,19 @@ export function AdminNotifications({ onClose }: AdminNotificationsProps) {
                       Employee: {selectedNotification.data.employeeName} ({selectedNotification.data.employeeId})
                     </div>
                   )}
+                  {selectedNotification.data.employeeRole && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge className="text-xs">
+                        {selectedNotification.data.employeeRole.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                  )}
+                  {selectedNotification.data.checkInTime && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="h-4 w-4" />
+                      Check-in: {new Date(selectedNotification.data.checkInTime).toLocaleString()}
+                    </div>
+                  )}
                   {selectedNotification.data.checkoutTime && (
                     <div className="flex items-center gap-2 text-sm">
                       <Clock className="h-4 w-4" />
@@ -334,6 +491,89 @@ export function AdminNotifications({ onClose }: AdminNotificationsProps) {
                       <MapPin className="h-4 w-4" />
                       Location: {selectedNotification.data.location}
                     </div>
+                  )}
+                  {selectedNotification.data.status && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge className={selectedNotification.data.status === 'PRESENT' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                        {selectedNotification.data.status}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Photo if available */}
+              {selectedNotification.data?.photo && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Camera className="h-4 w-4 text-gray-500" />
+                    <span className="text-gray-600">Check-in Photo:</span>
+                  </div>
+                  <div className="flex justify-center">
+                    <img 
+                      src={selectedNotification.data.photo} 
+                      alt="Check-in photo" 
+                      className="max-w-full h-32 object-cover rounded-lg border"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Rejection Form */}
+              {showRejectForm && selectedNotification.type === 'ATTENDANCE_APPROVAL_REQUEST' && (
+                <div className="space-y-2">
+                  <Label htmlFor="rejection-reason">Reason for Rejection</Label>
+                  <Textarea
+                    id="rejection-reason"
+                    placeholder="Please provide a reason for rejecting this attendance..."
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              )}
+
+              {/* Action Buttons for Attendance Approval */}
+              {selectedNotification.type === 'ATTENDANCE_APPROVAL_REQUEST' && selectedNotification.data?.attendanceId && (
+                <div className="flex gap-2 pt-4">
+                  {!showRejectForm ? (
+                    <>
+                      <Button
+                        onClick={() => handleApproveAttendance(selectedNotification.data!.attendanceId!)}
+                        disabled={isApproving}
+                        className="flex-1 bg-green-600 hover:bg-green-700"
+                      >
+                        {isApproving ? 'Approving...' : 'Approve'}
+                      </Button>
+                      <Button
+                        onClick={() => setShowRejectForm(true)}
+                        variant="destructive"
+                        className="flex-1"
+                      >
+                        Reject
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        onClick={() => {
+                          setShowRejectForm(false)
+                          setRejectionReason("")
+                        }}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => handleRejectAttendance(selectedNotification.data!.attendanceId!)}
+                        disabled={isRejecting || !rejectionReason.trim()}
+                        variant="destructive"
+                        className="flex-1"
+                      >
+                        {isRejecting ? 'Rejecting...' : 'Confirm Reject'}
+                      </Button>
+                    </>
                   )}
                 </div>
               )}

@@ -7,15 +7,17 @@ class AuthController {
     try {
       const { email, password, employeeId, adminId, userType } = req.body
 
+      console.log('Login attempt:', { email, employeeId, adminId, userType })
+
       if (!email || !password || !userType) {
         return res.status(400).json({ error: 'Missing required fields' })
       }
 
-      if (userType === 'employee' && !employeeId) {
+      if (userType?.toLowerCase() === 'employee' && !employeeId) {
         return res.status(400).json({ error: 'Employee ID is required for employee login' })
       }
 
-      if (userType === 'admin' && !adminId) {
+      if (userType?.toLowerCase() === 'admin' && !adminId) {
         return res.status(400).json({ error: 'Admin ID is required for admin login' })
       }
 
@@ -26,9 +28,11 @@ class AuthController {
       const user = await authService.authenticate(email, password, employeeId, adminId, userType, deviceInfo, ipAddress)
 
       if (!user) {
+        console.log('Authentication failed for:', { email, employeeId, adminId, userType })
         return res.status(401).json({ error: 'Invalid credentials' })
       }
 
+      console.log('Authentication successful for:', { email, userType, userId: user.id })
       res.json(user)
     } catch (error) {
       console.error('Login error:', error)

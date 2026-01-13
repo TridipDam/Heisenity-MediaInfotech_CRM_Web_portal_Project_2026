@@ -155,7 +155,7 @@ export default function TenderManagement() {
     if (session?.user) {
       const userType = (session.user as any)?.userType
       
-      if (userType !== 'admin') {
+      if (userType !== 'ADMIN') {
         toast({
           title: "Access Denied",
           description: "Only admin users can access tender management",

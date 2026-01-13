@@ -149,6 +149,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         isOpen={showAttendancePopup}
         onClose={closeAttendancePopup}
         data={attendanceApprovalData}
+        onActionComplete={() => {
+          // Force a refresh of notifications by clearing current data
+          // This will trigger the polling to fetch fresh notifications
+          setAttendanceApprovalData(null)
+        }}
       />
     </NotificationContext.Provider>
   )

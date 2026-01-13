@@ -255,13 +255,13 @@ export function VehiclesPage() {
               Vehicle Management
             </h1>
             <p className="text-gray-600">
-              {userType === 'admin' 
+              {userType === 'ADMIN' 
                 ? 'Manage vehicles, assignments, and petrol bill approvals'
                 : 'View your assigned vehicle and petrol bills'
               }
             </p>
           </div>
-          {userType === 'admin' && (
+          {userType === 'ADMIN' && (
             <div className="flex items-center gap-2">
               <Dialog open={showAddVehicle} onOpenChange={setShowAddVehicle}>
                 <DialogTrigger asChild>
@@ -431,7 +431,7 @@ export function VehiclesPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Assigned To</TableHead>
                     <TableHead>Assigned Date</TableHead>
-                    {userType === 'admin' && <TableHead>Actions</TableHead>}
+                    {userType === 'ADMIN' && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -470,7 +470,7 @@ export function VehiclesPage() {
                           <span className="text-gray-400">-</span>
                         )}
                       </TableCell>
-                      {userType === 'admin' && (
+                      {userType === 'ADMIN' && (
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {vehicle.status === 'ASSIGNED' && vehicle.employeeName && (
@@ -540,7 +540,7 @@ export function VehiclesPage() {
                           <Button variant="ghost" size="sm">
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {userType === 'admin' && bill.status === 'PENDING' && (
+                          {userType === 'ADMIN' && bill.status === 'PENDING' && (
                             <>
                               <Button variant="ghost" size="sm" className="text-green-600">
                                 Approve

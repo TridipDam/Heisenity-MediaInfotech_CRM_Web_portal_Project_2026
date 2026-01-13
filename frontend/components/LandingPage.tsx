@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -54,7 +54,7 @@ function UserLoginCard() {
         email,
         password,
         employeeId,
-        userType: "employee",
+        userType: "EMPLOYEE",
         redirect: false
       })
 
@@ -167,7 +167,7 @@ function StaffLoginCard() {
         email,
         password,
         employeeId,
-        userType: "employee",
+        userType: "EMPLOYEE",
         redirect: false
       })
 
@@ -321,7 +321,7 @@ function AdminLoginCard() {
           email,
           password,
           adminId,
-          userType: "admin",
+          userType: "ADMIN",
           redirect: false
         })
 
@@ -338,7 +338,7 @@ function AdminLoginCard() {
           email,
           password,
           adminId,
-          userType: "admin",
+          userType: "ADMIN",
           redirect: false
         })
 

@@ -19,7 +19,7 @@ export default function DashboardPage() {
     }
 
     const userType = (session.user as any)?.userType
-    if (userType !== 'admin') {
+    if (userType !== 'ADMIN') {
       router.push('/landing')
       return
     }
@@ -36,7 +36,7 @@ export default function DashboardPage() {
     )
   }
 
-  if (!session?.user || (session.user as any)?.userType !== 'admin') {
+  if (!session?.user || (session.user as any)?.userType !== 'ADMIN') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

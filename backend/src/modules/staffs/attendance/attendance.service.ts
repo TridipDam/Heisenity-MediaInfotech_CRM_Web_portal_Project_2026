@@ -162,7 +162,8 @@ export async function createAttendanceRecord(data: {
           employeeRole: employee.role,
           checkInTime: saved.clockIn?.toISOString(),
           location: locationText,
-          status: data.status
+          status: data.status,
+          photo: saved.photo
         }
       })
       
@@ -310,6 +311,11 @@ export async function approveAttendance(attendanceId: string, adminId: string, r
 
     // Create notification for approval
     const notificationService = new NotificationService()
+    
+    // First, remove the original approval request notification
+    await notificationService.removeAttendanceApprovalNotification(attendanceId)
+    
+    // Then create the approval confirmation notification
     await notificationService.createAdminNotification({
       type: 'ATTENDANCE_APPROVED',
       title: 'Attendance Approved',
@@ -379,6 +385,11 @@ export async function rejectAttendance(attendanceId: string, adminId: string, re
 
     // Create notification for rejection
     const notificationService = new NotificationService()
+    
+    // First, remove the original approval request notification
+    await notificationService.removeAttendanceApprovalNotification(attendanceId)
+    
+    // Then create the rejection confirmation notification
     await notificationService.createAdminNotification({
       type: 'ATTENDANCE_REJECTED',
       title: 'Attendance Rejected',

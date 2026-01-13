@@ -8,6 +8,7 @@ interface CustomUser {
   userType: string
   employeeId?: string
   adminId?: string
+  sessionToken?: string
 }
 
 const authOptions: AuthOptions = {
@@ -29,7 +30,7 @@ const authOptions: AuthOptions = {
         const { email, password, employeeId, adminId, userType } = credentials
 
         try {
-          const response = await fetch(`${process.env.BACKEND_URL}/auth/login`, {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/login`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -37,8 +38,8 @@ const authOptions: AuthOptions = {
             body: JSON.stringify({
               email,
               password,
-              employeeId: userType === "employee" ? employeeId : undefined,
-              adminId: userType === "admin" ? adminId : undefined,
+              employeeId: userType?.toLowerCase() === "employee" ? employeeId : undefined,
+              adminId: userType?.toLowerCase() === "admin" ? adminId : undefined,
               userType
             })
           })
@@ -72,7 +73,7 @@ const authOptions: AuthOptions = {
         token.userType = customUser.userType
         token.employeeId = customUser.employeeId
         token.adminId = customUser.adminId
-        token.sessionToken = (customUser as any).sessionToken
+        token.sessionToken = customUser.sessionToken
       }
       return token
     },
@@ -82,11 +83,11 @@ const authOptions: AuthOptions = {
         ;(session.user as CustomUser).userType = token.userType as string
         ;(session.user as CustomUser).employeeId = token.employeeId as string
         ;(session.user as CustomUser).adminId = token.adminId as string
-        ;(session.user as any).sessionToken = token.sessionToken as string
+        ;(session.user as CustomUser).sessionToken = token.sessionToken as string
       }
       return session
     },
-    async signIn({ user }) {
+    async signIn() {
       return true
     },
     async redirect({ url, baseUrl }) {

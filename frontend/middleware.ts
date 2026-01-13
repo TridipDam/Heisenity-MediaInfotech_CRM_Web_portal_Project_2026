@@ -23,7 +23,7 @@ export default withAuth(
       }
 
       // Admin access - allow all pages, but redirect from landing to dashboard
-      if (userType === 'admin') {
+      if (userType?.toLowerCase() === 'admin') {
         // Redirect admins from landing to dashboard
         if (pathname === '/landing') {
           return NextResponse.redirect(new URL('/dashboard', req.url))

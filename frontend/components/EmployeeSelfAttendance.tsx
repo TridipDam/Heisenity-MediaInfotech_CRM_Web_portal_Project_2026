@@ -60,7 +60,7 @@ export function EmployeeSelfAttendance({ onAttendanceMarked, deviceInfo }: Emplo
   useEffect(() => {
     if (session?.user) {
       const user = session.user as CustomUser
-      if (user.userType === 'employee' && user.employeeId) {
+      if (user.userType === 'EMPLOYEE' && user.employeeId) {
         setEmployeeId(user.employeeId)
       }
     }
