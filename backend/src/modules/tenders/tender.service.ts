@@ -34,13 +34,11 @@ export class TenderService {
   // Create new tender
   async createTender(data: {
     name: string;
-    description?: string;
     department: string;
-    projectMapping?: string;
-    tenderType: TenderType;
-    submissionDate: Date;
-    deadline: Date;
-    totalValue?: number;
+    requiredDocuments?: string;
+    totalEMDInvested?: number;
+    totalEMDRefunded?: number;
+    totalEMDForfeited?: number;
     createdBy: string;
   }) {
     const tenderNumber = await this.generateTenderNumber();
@@ -49,7 +47,12 @@ export class TenderService {
       data: {
         ...data,
         tenderNumber,
-        totalValue: data.totalValue ? data.totalValue.toString() : null,
+        tenderType: 'OPEN', // Default type
+        submissionDate: new Date(), // Default to today
+        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default to 30 days from now
+        totalEMDInvested: data.totalEMDInvested || null,
+        totalEMDRefunded: data.totalEMDRefunded || null,
+        totalEMDForfeited: data.totalEMDForfeited || null,
       },
     });
 

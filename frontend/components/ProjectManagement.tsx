@@ -15,17 +15,13 @@ import {
   Edit,
   Trash2,
   FolderOpen,
-  Calendar,
-  User,
   DollarSign,
   FileText,
   Clock,
   CheckCircle,
   AlertCircle,
-  Pause,
   Building2,
   TrendingUp,
-  BarChart3,
   Search,
   Filter,
   Download,
@@ -36,10 +32,7 @@ import {
   ArrowDownRight,
   Briefcase,
   CalendarDays,
-  Phone,
-  Mail,
   Zap,
-  Shield,
   Package
 } from "lucide-react"
 
@@ -55,7 +48,6 @@ interface ProjectProduct {
 interface Project {
   id: string
   name: string
-  clientName: string
   startDate: string
   status: 'ONGOING' | 'COMPLETED' | 'ON_HOLD'
   createdAt: string
@@ -67,10 +59,6 @@ interface Project {
   budget?: number
   progress?: number
   endDate?: string
-  projectManager?: string
-  clientEmail?: string
-  clientPhone?: string
-  tags?: string[]
 }
 
 interface ProjectUpdate {
@@ -131,17 +119,12 @@ export function ProjectManagement() {
   // Form states
   const [projectForm, setProjectForm] = React.useState({
     name: '',
-    clientName: '',
-    clientEmail: '',
-    clientPhone: '',
     description: '',
     startDate: '',
     endDate: '',
     status: 'ONGOING' as 'ONGOING' | 'COMPLETED' | 'ON_HOLD',
     priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
-    budget: '',
-    projectManager: '',
-    tags: ''
+    budget: ''
   })
 
   const [updateForm, setUpdateForm] = React.useState({
@@ -214,13 +197,12 @@ export function ProjectManagement() {
 
   React.useEffect(() => {
     fetchProjects()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filter projects based on search and filters
   const filteredProjects = React.useMemo(() => {
     return projects.filter(project => {
-      const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.clientName.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesStatus = statusFilter === 'ALL' || project.status === statusFilter
       const matchesPriority = priorityFilter === 'ALL' || project.priority === priorityFilter
 
@@ -238,8 +220,7 @@ export function ProjectManagement() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...projectForm,
-          budget: projectForm.budget ? parseFloat(projectForm.budget) : null,
-          tags: projectForm.tags ? projectForm.tags.split(',').map(tag => tag.trim()) : []
+          budget: projectForm.budget ? parseFloat(projectForm.budget) : null
         })
       })
 
@@ -258,17 +239,12 @@ export function ProjectManagement() {
   const resetProjectForm = () => {
     setProjectForm({
       name: '',
-      clientName: '',
-      clientEmail: '',
-      clientPhone: '',
       description: '',
       startDate: '',
       endDate: '',
       status: 'ONGOING',
       priority: 'MEDIUM',
-      budget: '',
-      projectManager: '',
-      tags: ''
+      budget: ''
     })
   }
 
@@ -284,8 +260,7 @@ export function ProjectManagement() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...projectForm,
-          budget: projectForm.budget ? parseFloat(projectForm.budget) : null,
-          tags: projectForm.tags ? projectForm.tags.split(',').map(tag => tag.trim()) : []
+          budget: projectForm.budget ? parseFloat(projectForm.budget) : null
         })
       })
 
@@ -399,15 +374,6 @@ export function ProjectManagement() {
     }
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'ONGOING': return <Activity className="h-4 w-4 text-slate-600" />
-      case 'COMPLETED': return <CheckCircle className="h-4 w-4 text-slate-600" />
-      case 'ON_HOLD': return <Pause className="h-4 w-4 text-slate-600" />
-      default: return <AlertCircle className="h-4 w-4 text-slate-600" />
-    }
-  }
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'ONGOING': return <Badge className="bg-slate-100 text-slate-700 border-slate-200">Active</Badge>
@@ -507,52 +473,6 @@ export function ProjectManagement() {
                     </div>
 
                     <div>
-                      <Label htmlFor="clientName" className="text-xs font-medium text-slate-600">Client Name *</Label>
-                      <Input
-                        id="clientName"
-                        value={projectForm.clientName}
-                        onChange={(e) => setProjectForm({ ...projectForm, clientName: e.target.value })}
-                        placeholder="Client company or individual name"
-                        required
-                        className="h-9 text-sm border-slate-300"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="clientEmail" className="text-xs font-medium text-slate-600">Client Email</Label>
-                      <Input
-                        id="clientEmail"
-                        type="email"
-                        value={projectForm.clientEmail}
-                        onChange={(e) => setProjectForm({ ...projectForm, clientEmail: e.target.value })}
-                        placeholder="client@company.com"
-                        className="h-9 text-sm border-slate-300"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="clientPhone" className="text-xs font-medium text-slate-600">Client Phone</Label>
-                      <Input
-                        id="clientPhone"
-                        value={projectForm.clientPhone}
-                        onChange={(e) => setProjectForm({ ...projectForm, clientPhone: e.target.value })}
-                        placeholder="+1 (555) 123-4567"
-                        className="h-9 text-sm border-slate-300"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="projectManager" className="text-xs font-medium text-slate-600">Project Manager</Label>
-                      <Input
-                        id="projectManager"
-                        value={projectForm.projectManager}
-                        onChange={(e) => setProjectForm({ ...projectForm, projectManager: e.target.value })}
-                        placeholder="Assigned project manager"
-                        className="h-9 text-sm border-slate-300"
-                      />
-                    </div>
-
-                    <div>
                       <Label htmlFor="startDate" className="text-xs font-medium text-slate-600">Start Date *</Label>
                       <Input
                         id="startDate"
@@ -577,7 +497,7 @@ export function ProjectManagement() {
 
                     <div>
                       <Label htmlFor="priority" className="text-xs font-medium text-slate-600">Priority</Label>
-                      <Select value={projectForm.priority} onValueChange={(value: any) => setProjectForm({ ...projectForm, priority: value })}>
+                      <Select value={projectForm.priority} onValueChange={(value: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL') => setProjectForm({ ...projectForm, priority: value })}>
                         <SelectTrigger className="h-9 text-sm border-slate-300">
                           <SelectValue />
                         </SelectTrigger>
@@ -592,7 +512,7 @@ export function ProjectManagement() {
 
                     <div>
                       <Label htmlFor="status" className="text-xs font-medium text-slate-600">Initial Status</Label>
-                      <Select value={projectForm.status} onValueChange={(value: any) => setProjectForm({ ...projectForm, status: value })}>
+                      <Select value={projectForm.status} onValueChange={(value: 'ONGOING' | 'COMPLETED' | 'ON_HOLD') => setProjectForm({ ...projectForm, status: value })}>
                         <SelectTrigger className="h-9 text-sm border-slate-300">
                           <SelectValue />
                         </SelectTrigger>
@@ -603,7 +523,7 @@ export function ProjectManagement() {
                       </Select>
                     </div>
 
-                    <div>
+                    <div className="md:col-span-2">
                       <Label htmlFor="budget" className="text-xs font-medium text-slate-600">Project Budget (₹)</Label>
                       <Input
                         id="budget"
@@ -612,17 +532,6 @@ export function ProjectManagement() {
                         value={projectForm.budget}
                         onChange={(e) => setProjectForm({ ...projectForm, budget: e.target.value })}
                         placeholder="0.00"
-                        className="h-9 text-sm border-slate-300"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="tags" className="text-xs font-medium text-slate-600">Tags (comma-separated)</Label>
-                      <Input
-                        id="tags"
-                        value={projectForm.tags}
-                        onChange={(e) => setProjectForm({ ...projectForm, tags: e.target.value })}
-                        placeholder="web, mobile, design, development"
                         className="h-9 text-sm border-slate-300"
                       />
                     </div>
@@ -643,7 +552,6 @@ export function ProjectManagement() {
           </div>
         </div>
       </div>
-
       {/* Stats Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-white border border-slate-200 rounded-lg">
@@ -711,7 +619,7 @@ export function ProjectManagement() {
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                  placeholder="Search projects or clients..."
+                  placeholder="Search projects..."
                   className="pl-9 h-9 text-sm border-slate-300"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -757,7 +665,6 @@ export function ProjectManagement() {
               <div className="flex items-start justify-between">
                 <div className="space-y-2 flex-1">
                   <div className="flex items-center gap-2">
-                    {getStatusIcon(project.status)}
                     <CardTitle className="text-sm font-semibold text-slate-900 truncate">
                       {project.name}
                     </CardTitle>
@@ -765,19 +672,9 @@ export function ProjectManagement() {
 
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <Building2 className="h-4 w-4 text-slate-400" />
-                      <span className="truncate">{project.clientName}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
                       <CalendarDays className="h-4 w-4 text-slate-400" />
                       <span>{project.startDate ? new Date(project.startDate).toLocaleDateString() : '--'}</span>
                     </div>
-                    {project.projectManager && (
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <User className="h-4 w-4 text-slate-400" />
-                        <span className="truncate">{project.projectManager}</span>
-                      </div>
-                    )}
                   </div>
 
                   <div className="flex flex-wrap gap-2 mt-2">
@@ -804,17 +701,12 @@ export function ProjectManagement() {
                       setSelectedProject(project)
                       setProjectForm({
                         name: project.name,
-                        clientName: project.clientName,
-                        clientEmail: project.clientEmail || '',
-                        clientPhone: project.clientPhone || '',
                         description: project.description || '',
                         startDate: project.startDate ? project.startDate.split('T')[0] : '',
                         endDate: project.endDate ? project.endDate.split('T')[0] : '',
                         status: project.status,
                         priority: project.priority || 'MEDIUM',
-                        budget: project.budget?.toString() || '',
-                        projectManager: project.projectManager || '',
-                        tags: (Array.isArray(project.tags) ? project.tags.join(', ') : '') || ''
+                        budget: project.budget?.toString() || ''
                       })
                       setIsEditDialogOpen(true)
                     }}
@@ -1018,7 +910,7 @@ export function ProjectManagement() {
           {selectedProject && (
             <div className="space-y-6 p-4">
               {/* Project Overview */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6">
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
@@ -1056,65 +948,10 @@ export function ProjectManagement() {
                       )}
                     </div>
 
-                    {selectedProject.projectManager && (
-                      <div>
-                        <Label className="text-sm font-medium text-slate-600">Project Manager</Label>
-                        <p className="text-slate-900">{selectedProject.projectManager}</p>
-                      </div>
-                    )}
-
                     {selectedProject.budget && (
                       <div>
                         <Label className="text-sm font-medium text-slate-600">Budget</Label>
                         <p className="text-slate-900">₹{selectedProject.budget.toLocaleString()}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <User className="h-5 w-5" />
-                      Client Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium text-slate-600">Client Name</Label>
-                      <p className="text-slate-900">{selectedProject.clientName}</p>
-                    </div>
-
-                    {selectedProject.clientEmail && (
-                      <div>
-                        <Label className="text-sm font-medium text-slate-600">Email</Label>
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-slate-400" />
-                          <p className="text-slate-900">{selectedProject.clientEmail}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedProject.clientPhone && (
-                      <div>
-                        <Label className="text-sm font-medium text-slate-600">Phone</Label>
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-slate-400" />
-                          <p className="text-slate-900">{selectedProject.clientPhone}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedProject.tags && Array.isArray(selectedProject.tags) && selectedProject.tags.length > 0 && (
-                      <div>
-                        <Label className="text-sm font-medium text-slate-600">Tags</Label>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {selectedProject.tags.map((tag, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
                       </div>
                     )}
                   </CardContent>
@@ -1321,51 +1158,6 @@ export function ProjectManagement() {
               </div>
 
               <div>
-                <Label htmlFor="edit-clientName" className="text-xs font-medium text-slate-600">Client Name *</Label>
-                <Input
-                  id="edit-clientName"
-                  value={projectForm.clientName}
-                  onChange={(e) => setProjectForm({ ...projectForm, clientName: e.target.value })}
-                  required
-                  className="h-9 text-sm border-slate-300"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="edit-clientEmail" className="text-xs font-medium text-slate-600">Client Email</Label>
-                <Input
-                  id="edit-clientEmail"
-                  type="email"
-                  value={projectForm.clientEmail}
-                  onChange={(e) => setProjectForm({ ...projectForm, clientEmail: e.target.value })}
-                  placeholder="client@company.com"
-                  className="h-9 text-sm border-slate-300"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="edit-clientPhone" className="text-xs font-medium text-slate-600">Client Phone</Label>
-                <Input
-                  id="edit-clientPhone"
-                  value={projectForm.clientPhone}
-                  onChange={(e) => setProjectForm({ ...projectForm, clientPhone: e.target.value })}
-                  placeholder="+1 (555) 123-4567"
-                  className="h-9 text-sm border-slate-300"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="edit-projectManager" className="text-xs font-medium text-slate-600">Project Manager</Label>
-                <Input
-                  id="edit-projectManager"
-                  value={projectForm.projectManager}
-                  onChange={(e) => setProjectForm({ ...projectForm, projectManager: e.target.value })}
-                  placeholder="Assigned project manager"
-                  className="h-9 text-sm border-slate-300"
-                />
-              </div>
-
-              <div>
                 <Label htmlFor="edit-startDate" className="text-xs font-medium text-slate-600">Start Date *</Label>
                 <Input
                   id="edit-startDate"
@@ -1390,7 +1182,7 @@ export function ProjectManagement() {
 
               <div>
                 <Label htmlFor="edit-priority" className="text-xs font-medium text-slate-600">Priority</Label>
-                <Select value={projectForm.priority} onValueChange={(value: any) => setProjectForm({ ...projectForm, priority: value })}>
+                <Select value={projectForm.priority} onValueChange={(value: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL') => setProjectForm({ ...projectForm, priority: value })}>
                   <SelectTrigger className="h-9 text-sm border-slate-300">
                     <SelectValue />
                   </SelectTrigger>
@@ -1405,7 +1197,7 @@ export function ProjectManagement() {
 
               <div>
                 <Label htmlFor="edit-status" className="text-xs font-medium text-slate-600">Status</Label>
-                <Select value={projectForm.status} onValueChange={(value: any) => setProjectForm({ ...projectForm, status: value })}>
+                <Select value={projectForm.status} onValueChange={(value: 'ONGOING' | 'COMPLETED' | 'ON_HOLD') => setProjectForm({ ...projectForm, status: value })}>
                   <SelectTrigger className="h-9 text-sm border-slate-300">
                     <SelectValue />
                   </SelectTrigger>
@@ -1417,7 +1209,7 @@ export function ProjectManagement() {
                 </Select>
               </div>
 
-              <div>
+              <div className="md:col-span-2">
                 <Label htmlFor="edit-budget" className="text-xs font-medium text-slate-600">Project Budget (₹)</Label>
                 <Input
                   id="edit-budget"
@@ -1426,17 +1218,6 @@ export function ProjectManagement() {
                   value={projectForm.budget}
                   onChange={(e) => setProjectForm({ ...projectForm, budget: e.target.value })}
                   placeholder="0.00"
-                  className="h-9 text-sm border-slate-300"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="edit-tags" className="text-xs font-medium text-slate-600">Tags (comma-separated)</Label>
-                <Input
-                  id="edit-tags"
-                  value={projectForm.tags}
-                  onChange={(e) => setProjectForm({ ...projectForm, tags: e.target.value })}
-                  placeholder="web, mobile, design, development"
                   className="h-9 text-sm border-slate-300"
                 />
               </div>
@@ -1454,7 +1235,6 @@ export function ProjectManagement() {
           </form>
         </DialogContent>
       </Dialog>
-
       {/* Add Update Dialog */}
       <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto rounded-lg border border-slate-200 shadow-xl">
@@ -1558,7 +1338,7 @@ export function ProjectManagement() {
           <form onSubmit={handleAddPayment} className="space-y-4 p-4">
             <div>
               <Label htmlFor="payment-status" className="text-sm font-medium text-slate-600">Payment Status</Label>
-              <Select value={paymentForm.status} onValueChange={(value: any) => setPaymentForm({ ...paymentForm, status: value })}>
+              <Select value={paymentForm.status} onValueChange={(value: 'FULLY_PAID' | 'PARTIALLY_PAID' | 'FULL_DUE') => setPaymentForm({ ...paymentForm, status: value })}>
                 <SelectTrigger className="h-9 text-sm border-slate-300">
                   <SelectValue />
                 </SelectTrigger>

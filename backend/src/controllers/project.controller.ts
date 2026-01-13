@@ -78,42 +78,32 @@ export class ProjectController {
     try {
       const { 
         name, 
-        clientName, 
         startDate, 
         status,
         description,
         endDate,
         priority,
         budget,
-        progress,
-        projectManager,
-        clientEmail,
-        clientPhone,
-        tags
+        progress
       } = req.body;
 
-      if (!name || !clientName || !startDate) {
+      if (!name || !startDate) {
         return res.status(400).json({
           success: false,
-          message: 'Name, client name, and start date are required'
+          message: 'Name and start date are required'
         });
       }
 
       const project = await prisma.project.create({
         data: {
           name,
-          clientName,
           startDate: new Date(startDate),
           status: status || 'ONGOING',
           description: description || null,
           endDate: endDate ? new Date(endDate) : null,
           priority: priority || 'MEDIUM',
           budget: budget ? parseFloat(budget) : null,
-          progress: progress ? parseInt(progress) : 0,
-          projectManager: projectManager || null,
-          clientEmail: clientEmail || null,
-          clientPhone: clientPhone || null,
-          tags: tags ? JSON.stringify(tags) : null
+          progress: progress ? parseInt(progress) : 0
         },
         include: {
           updates: true,
@@ -142,24 +132,18 @@ export class ProjectController {
       const { id } = req.params;
       const { 
         name, 
-        clientName, 
         startDate, 
         status,
         description,
         endDate,
         priority,
         budget,
-        progress,
-        projectManager,
-        clientEmail,
-        clientPhone,
-        tags
+        progress
       } = req.body;
 
       const updateData: any = {};
       
       if (name) updateData.name = name;
-      if (clientName) updateData.clientName = clientName;
       if (startDate) updateData.startDate = new Date(startDate);
       if (status) updateData.status = status;
       if (description !== undefined) updateData.description = description;
@@ -167,10 +151,6 @@ export class ProjectController {
       if (priority) updateData.priority = priority;
       if (budget !== undefined) updateData.budget = budget ? parseFloat(budget) : null;
       if (progress !== undefined) updateData.progress = progress ? parseInt(progress) : null;
-      if (projectManager !== undefined) updateData.projectManager = projectManager;
-      if (clientEmail !== undefined) updateData.clientEmail = clientEmail;
-      if (clientPhone !== undefined) updateData.clientPhone = clientPhone;
-      if (tags !== undefined) updateData.tags = tags ? JSON.stringify(tags) : null;
 
       const project = await prisma.project.update({
         where: { id },

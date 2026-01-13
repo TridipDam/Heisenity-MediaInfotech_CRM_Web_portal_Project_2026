@@ -434,7 +434,6 @@ model SystemConfiguration {
 model Project {
   id          String        @id @default(cuid())
   name        String
-  clientName  String
   startDate   DateTime      @db.Date
   status      ProjectStatus @default(ONGOING)
   createdAt   DateTime      @default(now())
@@ -446,10 +445,6 @@ model Project {
   priority    ProjectPriority @default(MEDIUM)
   budget      Decimal?      @db.Decimal(12, 2)
   progress    Int?          @default(0) // Progress percentage 0-100
-  projectManager String?
-  clientEmail String?
-  clientPhone String?
-  tags        String?       @db.Text // JSON array of tags
 
   // Relations
   updates     ProjectUpdate[]
@@ -681,6 +676,10 @@ model Tender {
   deadline        DateTime      @db.Date
   status          TenderStatus  @default(DRAFT)
   totalValue      Decimal?      @db.Decimal(15, 2)
+  requiredDocuments String?     @db.Text // List of required document names
+  totalEMDInvested  Decimal?    @db.Decimal(15, 2) // Total EMD invested
+  totalEMDRefunded  Decimal?    @db.Decimal(15, 2) // Total EMD refunded
+  totalEMDForfeited Decimal?    @db.Decimal(15, 2) // Total EMD forfeited
   createdBy       String        // Admin ID
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt

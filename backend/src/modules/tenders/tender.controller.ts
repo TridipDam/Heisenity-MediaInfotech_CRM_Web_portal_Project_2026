@@ -41,13 +41,11 @@ export class TenderController {
     try {
       const {
         name,
-        description,
         department,
-        projectMapping,
-        tenderType,
-        submissionDate,
-        deadline,
-        totalValue
+        requiredDocuments,
+        totalEMDInvested,
+        totalEMDRefunded,
+        totalEMDForfeited
       } = req.body;
 
       const createdBy = req.user?.id;
@@ -59,30 +57,20 @@ export class TenderController {
       }
 
       // Validate required fields
-      if (!name || !department || !tenderType || !submissionDate || !deadline) {
+      if (!name || !department) {
         return res.status(400).json({
           success: false,
           message: 'Missing required fields'
         });
       }
 
-      // Validate tender type
-      if (!Object.values(TenderType).includes(tenderType as TenderType)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid tender type'
-        });
-      }
-
       const tender = await tenderService.createTender({
         name,
-        description,
         department,
-        projectMapping,
-        tenderType,
-        submissionDate: new Date(submissionDate),
-        deadline: new Date(deadline),
-        totalValue: totalValue ? parseFloat(totalValue) : undefined,
+        requiredDocuments,
+        totalEMDInvested: totalEMDInvested ? parseFloat(totalEMDInvested) : undefined,
+        totalEMDRefunded: totalEMDRefunded ? parseFloat(totalEMDRefunded) : undefined,
+        totalEMDForfeited: totalEMDForfeited ? parseFloat(totalEMDForfeited) : undefined,
         createdBy
       });
 
@@ -190,7 +178,7 @@ export class TenderController {
       const updateData: any = {};
       const allowedFields = [
         'name', 'description', 'department', 'projectMapping', 
-        'tenderType', 'submissionDate', 'deadline', 'totalValue', 'internalRemarks'
+        'tenderType', 'submissionDate', 'deadline', 'totalValue', 'internalRemarks', 'requiredDocuments'
       ];
 
       allowedFields.forEach(field => {

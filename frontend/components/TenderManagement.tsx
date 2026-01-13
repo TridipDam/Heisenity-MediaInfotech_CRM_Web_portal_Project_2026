@@ -47,6 +47,10 @@ interface Tender {
   deadline: string
   status: string
   totalValue?: number
+  requiredDocuments?: string
+  totalEMDInvested?: number
+  totalEMDRefunded?: number
+  totalEMDForfeited?: number
   createdAt: string
   updatedAt: string
   internalRemarks?: string
@@ -131,7 +135,6 @@ export default function TenderManagement() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
   const [selectedTender, setSelectedTender] = useState<Tender | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
@@ -141,14 +144,11 @@ export default function TenderManagement() {
   // Form states
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
     department: '',
-    projectMapping: '',
-    tenderType: '',
-    submissionDate: '',
-    deadline: '',
-    totalValue: '',
-    internalRemarks: ''
+    requiredDocuments: '',
+    totalEMDInvested: '',
+    totalEMDRefunded: '',
+    totalEMDForfeited: ''
   })
 
   useEffect(() => {
@@ -228,7 +228,9 @@ export default function TenderManagement() {
         },
         body: JSON.stringify({
           ...formData,
-          totalValue: formData.totalValue ? parseFloat(formData.totalValue) : undefined
+          totalEMDInvested: formData.totalEMDInvested ? parseFloat(formData.totalEMDInvested) : undefined,
+          totalEMDRefunded: formData.totalEMDRefunded ? parseFloat(formData.totalEMDRefunded) : undefined,
+          totalEMDForfeited: formData.totalEMDForfeited ? parseFloat(formData.totalEMDForfeited) : undefined
         })
       })
       
@@ -242,14 +244,11 @@ export default function TenderManagement() {
         setShowCreateDialog(false)
         setFormData({
           name: '',
-          description: '',
           department: '',
-          projectMapping: '',
-          tenderType: '',
-          submissionDate: '',
-          deadline: '',
-          totalValue: '',
-          internalRemarks: ''
+          requiredDocuments: '',
+          totalEMDInvested: '',
+          totalEMDRefunded: '',
+          totalEMDForfeited: ''
         })
         fetchTenders()
       } else {
@@ -331,9 +330,8 @@ export default function TenderManagement() {
                          tender.tenderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          tender.department.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = !statusFilter || statusFilter === 'all' || tender.status === statusFilter
-    const matchesType = !typeFilter || typeFilter === 'all' || tender.tenderType === typeFilter
     
-    return matchesSearch && matchesStatus && matchesType
+    return matchesSearch && matchesStatus
   })
 
   if (loading) {
@@ -362,14 +360,14 @@ export default function TenderManagement() {
               Create Tender
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader className="pb-4">
               <DialogTitle className="text-xl">Create New Tender</DialogTitle>
               <DialogDescription>
-                Fill in the details to create a new tender
+                Fill in the basic details and EMD information to create a new tender
               </DialogDescription>
             </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Tender Name *</Label>
                 <Input
@@ -389,73 +387,58 @@ export default function TenderManagement() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="tenderType">Tender Type *</Label>
-                <Select value={formData.tenderType} onValueChange={(value) => setFormData({ ...formData, tenderType: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select tender type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TENDER_TYPES.map(type => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="totalValue">Total Value</Label>
-                <Input
-                  id="totalValue"
-                  type="number"
-                  value={formData.totalValue}
-                  onChange={(e) => setFormData({ ...formData, totalValue: e.target.value })}
-                  placeholder="Enter total value"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="submissionDate">Submission Date *</Label>
-                <Input
-                  id="submissionDate"
-                  type="date"
-                  value={formData.submissionDate}
-                  onChange={(e) => setFormData({ ...formData, submissionDate: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="deadline">Deadline *</Label>
-                <Input
-                  id="deadline"
-                  type="date"
-                  value={formData.deadline}
-                  onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="projectMapping">Project Mapping</Label>
-                <Input
-                  id="projectMapping"
-                  value={formData.projectMapping}
-                  onChange={(e) => setFormData({ ...formData, projectMapping: e.target.value })}
-                  placeholder="Enter project mapping"
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="requiredDocuments">Required Documents</Label>
                 <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Enter tender description"
-                  rows={3}
+                  id="requiredDocuments"
+                  value={formData.requiredDocuments}
+                  onChange={(e) => setFormData({ ...formData, requiredDocuments: e.target.value })}
+                  placeholder="Enter required document names (e.g., Technical Specification, Financial Proposal, Company Profile, etc.)"
+                  rows={4}
                 />
+              </div>
+              
+              {/* EMD Section */}
+              <div className="border-t pt-4">
+                <h4 className="text-lg font-medium text-gray-900 mb-4">EMD Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="totalEMDInvested">Total EMD Invested (₹)</Label>
+                    <Input
+                      id="totalEMDInvested"
+                      type="number"
+                      value={formData.totalEMDInvested}
+                      onChange={(e) => setFormData({ ...formData, totalEMDInvested: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="totalEMDRefunded">Total EMD Refunded (₹)</Label>
+                    <Input
+                      id="totalEMDRefunded"
+                      type="number"
+                      value={formData.totalEMDRefunded}
+                      onChange={(e) => setFormData({ ...formData, totalEMDRefunded: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="totalEMDForfeited">Total EMD Forfeited (₹)</Label>
+                    <Input
+                      id="totalEMDForfeited"
+                      type="number"
+                      value={formData.totalEMDForfeited}
+                      onChange={(e) => setFormData({ ...formData, totalEMDForfeited: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
               <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateTender} disabled={!formData.name || !formData.department || !formData.tenderType}>
+              <Button onClick={handleCreateTender} disabled={!formData.name || !formData.department}>
                 Create Tender
               </Button>
             </div>
@@ -532,19 +515,6 @@ export default function TenderManagement() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-full md:w-48">
-                  <SelectValue placeholder="Filter by type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  {TENDER_TYPES.map(type => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </CardContent>
         </Card>
@@ -567,12 +537,11 @@ export default function TenderManagement() {
                     <TableHead className="min-w-[120px] font-semibold">Tender Number</TableHead>
                     <TableHead className="min-w-[200px] font-semibold">Name</TableHead>
                     <TableHead className="min-w-[120px] font-semibold">Department</TableHead>
-                    <TableHead className="min-w-[100px] font-semibold">Type</TableHead>
                     <TableHead className="min-w-[100px] font-semibold">Status</TableHead>
-                    <TableHead className="min-w-[120px] font-semibold">Deadline</TableHead>
-                    <TableHead className="min-w-[120px] font-semibold">Total Value</TableHead>
                     <TableHead className="min-w-[100px] font-semibold">Documents</TableHead>
-                    <TableHead className="min-w-[80px] font-semibold">EMD</TableHead>
+                    <TableHead className="min-w-[120px] font-semibold">EMD Invested</TableHead>
+                    <TableHead className="min-w-[120px] font-semibold">EMD Refunded</TableHead>
+                    <TableHead className="min-w-[120px] font-semibold">EMD Forfeited</TableHead>
                     <TableHead className="min-w-[120px] font-semibold">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -586,23 +555,7 @@ export default function TenderManagement() {
                       <TableCell className="max-w-[120px] truncate" title={tender.department}>
                         {tender.department}
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {TENDER_TYPES.find(t => t.value === tender.tenderType)?.label || tender.tenderType}
-                        </Badge>
-                      </TableCell>
                       <TableCell>{getStatusBadge(tender.status)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm">
-                            {new Date(tender.deadline).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {tender.totalValue ? `₹${tender.totalValue.toLocaleString()}` : '-'}
-                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <FileText className="h-4 w-4 text-gray-400" />
@@ -611,8 +564,26 @@ export default function TenderManagement() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <DollarSign className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm">{tender._count.emdRecords}</span>
+                          <DollarSign className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-900">
+                            {tender.totalEMDInvested ? `₹${Number(tender.totalEMDInvested).toLocaleString()}` : '₹0'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <DollarSign className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-medium text-green-900">
+                            {tender.totalEMDRefunded ? `₹${Number(tender.totalEMDRefunded).toLocaleString()}` : '₹0'}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <DollarSign className="h-4 w-4 text-red-600" />
+                          <span className="text-sm font-medium text-red-900">
+                            {tender.totalEMDForfeited ? `₹${Number(tender.totalEMDForfeited).toLocaleString()}` : '₹0'}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -675,13 +646,9 @@ export default function TenderManagement() {
             </DialogDescription>
           </DialogHeader>
           {selectedTender && (
-            <Tabs defaultValue="details" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="documents">Documents</TabsTrigger>
-                <TabsTrigger value="emd">EMD Records</TabsTrigger>
-              </TabsList>
-              <TabsContent value="details" className="space-y-6">
+            <div className="space-y-6">
+              {/* Basic Details */}
+              <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-gray-500">Tender Name</Label>
@@ -692,44 +659,53 @@ export default function TenderManagement() {
                     <p className="text-sm">{selectedTender.department}</p>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Type</Label>
-                    <p className="text-sm">{TENDER_TYPES.find(t => t.value === selectedTender.tenderType)?.label}</p>
-                  </div>
-                  <div className="space-y-2">
                     <Label className="text-sm font-medium text-gray-500">Status</Label>
                     <div className="mt-1">{getStatusBadge(selectedTender.status)}</div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Submission Date</Label>
-                    <p className="text-sm">{new Date(selectedTender.submissionDate).toLocaleDateString()}</p>
+                    <Label className="text-sm font-medium text-gray-500">Tender Number</Label>
+                    <p className="text-sm font-mono">{selectedTender.tenderNumber}</p>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Deadline</Label>
-                    <p className="text-sm">{new Date(selectedTender.deadline).toLocaleDateString()}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Total Value</Label>
-                    <p className="text-sm">{selectedTender.totalValue ? `₹${selectedTender.totalValue.toLocaleString()}` : 'Not specified'}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Project Mapping</Label>
-                    <p className="text-sm">{selectedTender.projectMapping || 'Not specified'}</p>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="text-sm font-medium text-gray-500">Required Documents</Label>
+                    <p className="text-sm">{selectedTender.requiredDocuments || 'Not specified'}</p>
                   </div>
                 </div>
-                {selectedTender.description && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Description</Label>
-                    <p className="text-sm mt-2 p-3 bg-gray-50 rounded-md">{selectedTender.description}</p>
+                
+                {/* EMD Summary */}
+                {(selectedTender.totalEMDInvested || selectedTender.totalEMDRefunded || selectedTender.totalEMDForfeited) && (
+                  <div className="mt-4 pt-4 border-t">
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">EMD Summary</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {selectedTender.totalEMDInvested && (
+                        <div className="bg-blue-50 p-3 rounded-lg">
+                          <p className="text-xs font-medium text-blue-800">Total EMD Invested</p>
+                          <p className="text-lg font-bold text-blue-900">₹{selectedTender.totalEMDInvested.toLocaleString()}</p>
+                        </div>
+                      )}
+                      {selectedTender.totalEMDRefunded && (
+                        <div className="bg-green-50 p-3 rounded-lg">
+                          <p className="text-xs font-medium text-green-800">Total EMD Refunded</p>
+                          <p className="text-lg font-bold text-green-900">₹{selectedTender.totalEMDRefunded.toLocaleString()}</p>
+                        </div>
+                      )}
+                      {selectedTender.totalEMDForfeited && (
+                        <div className="bg-red-50 p-3 rounded-lg">
+                          <p className="text-xs font-medium text-red-800">Total EMD Forfeited</p>
+                          <p className="text-lg font-bold text-red-900">₹{selectedTender.totalEMDForfeited.toLocaleString()}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
-                {selectedTender.internalRemarks && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-500">Internal Remarks</Label>
-                    <p className="text-sm mt-2 p-3 bg-yellow-50 rounded-md">{selectedTender.internalRemarks}</p>
-                  </div>
-                )}
-              </TabsContent>
-              <TabsContent value="documents" className="space-y-4">
+              </div>
+
+              <Tabs defaultValue="documents" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="documents">Documents</TabsTrigger>
+                  <TabsTrigger value="emd">EMD Records</TabsTrigger>
+                </TabsList>
+                <TabsContent value="documents" className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-medium">Documents</h3>
                   <Button 
@@ -811,7 +787,8 @@ export default function TenderManagement() {
                   </div>
                 )}
               </TabsContent>
-            </Tabs>
+              </Tabs>
+            </div>
           )}
         </DialogContent>
       </Dialog>

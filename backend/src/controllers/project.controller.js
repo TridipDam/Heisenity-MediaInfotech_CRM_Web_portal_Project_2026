@@ -10,6 +10,9 @@ export class ProjectController {
                     },
                     payments: {
                         orderBy: { createdAt: 'desc' }
+                    },
+                    products: {
+                        orderBy: { createdAt: 'desc' }
                     }
                 },
                 orderBy: { createdAt: 'desc' }
@@ -39,6 +42,9 @@ export class ProjectController {
                     },
                     payments: {
                         orderBy: { createdAt: 'desc' }
+                    },
+                    products: {
+                        orderBy: { createdAt: 'desc' }
                     }
                 }
             });
@@ -64,23 +70,28 @@ export class ProjectController {
     // Create new project
     static async createProject(req, res) {
         try {
-            const { name, clientName, startDate, status } = req.body;
-            if (!name || !clientName || !startDate) {
+            const { name, startDate, status, description, endDate, priority, budget, progress } = req.body;
+            if (!name || !startDate) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Name, client name, and start date are required'
+                    message: 'Name and start date are required'
                 });
             }
             const project = await prisma.project.create({
                 data: {
                     name,
-                    clientName,
                     startDate: new Date(startDate),
-                    status: status || 'ONGOING'
+                    status: status || 'ONGOING',
+                    description: description || null,
+                    endDate: endDate ? new Date(endDate) : null,
+                    priority: priority || 'MEDIUM',
+                    budget: budget ? parseFloat(budget) : null,
+                    progress: progress ? parseInt(progress) : 0
                 },
                 include: {
                     updates: true,
-                    payments: true
+                    payments: true,
+                    products: true
                 }
             });
             res.status(201).json({
