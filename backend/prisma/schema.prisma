@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
 }
 
 model Admin {
@@ -79,7 +79,7 @@ model Employee {
   sessions UserSession[]
 
   @@index([teamId])
-  @@index([assignedBy], map: "employees_assignedBy_fkey")
+  @@index([assignedBy])
   @@map("employees")
 }
 
@@ -106,7 +106,7 @@ model Attendance {
   deviceInfo    String?
   locked        Boolean          @default(false)
   lockedReason  String?          @db.Text
-  photo         String?          @db.LongText
+  photo         String?          @db.Text
   taskId        String?
   taskStartTime String?
   taskEndTime   String?
