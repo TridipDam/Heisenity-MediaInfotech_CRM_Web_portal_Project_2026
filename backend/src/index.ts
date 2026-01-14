@@ -13,8 +13,25 @@ const PORT = process.env.PORT || 3001
 
 // Middleware 
 app.use(helmet())
+
+// CORS configuration - allow multiple origins
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://heisenity-mediainfotech-crm-web-portal-zr9h.onrender.com',
+  process.env.FRONTEND_URL
+].filter(Boolean) // Remove undefined values
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true)
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
   credentials: true
 }))
 app.use(express.json())
