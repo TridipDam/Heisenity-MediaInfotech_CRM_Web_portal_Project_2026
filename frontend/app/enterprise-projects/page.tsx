@@ -1,7 +1,7 @@
 "use client"
 
-import { EnterpriseProjectManagement } from "@/components/EnterpriseProjectManagement"
+import { ProjectManagement } from "@/components/ProjectManagement"
 
 export default function EnterpriseProjectsPage() {
-  return <EnterpriseProjectManagement />
+  return <ProjectManagement />
 }

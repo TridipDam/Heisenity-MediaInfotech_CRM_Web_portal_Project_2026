@@ -342,7 +342,7 @@ export async function checkEmployeeIdAvailability(employeeId: string): Promise<C
   return {
     success: true,
     message: 'Available',
-    data: { available: true }
+    data: { employeeId, available: true }
   }
 }
 
@@ -368,7 +368,7 @@ export async function validateEmployeeIdFormat(employeeId: string): Promise<Vali
   return {
     success: true,
     message: isValid ? 'Valid format' : 'Invalid format',
-    data: { valid: isValid }
+    data: { employeeId, valid: isValid }
   }
 }
 

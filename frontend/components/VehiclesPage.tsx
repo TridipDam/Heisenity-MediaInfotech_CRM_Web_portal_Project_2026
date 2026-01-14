@@ -477,7 +477,7 @@ export function VehiclesPage() {
                               <Button 
                                 variant="ghost" 
                                 size="sm"
-                                onClick={() => handleUnassignVehicle(vehicle.id, vehicle.vehicleNumber, vehicle.employeeName)}
+                                onClick={() => handleUnassignVehicle(vehicle.id, vehicle.vehicleNumber, vehicle.employeeName || 'Unknown')}
                                 className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                                 title="Unassign vehicle"
                               >

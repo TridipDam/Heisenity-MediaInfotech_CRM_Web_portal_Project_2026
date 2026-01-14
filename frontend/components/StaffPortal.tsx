@@ -23,10 +23,10 @@ import { EmployeeSelfAttendance } from "./EmployeeSelfAttendance"
 import { LeaveApplicationForm } from "./LeaveApplicationForm"
 import { LeaveApplicationsList } from "./LeaveApplicationsList"
 import { EmployeeDocuments } from "./EmployeeDocuments"
-import { getEmployeeTasks } from "@/lib/server-api"
+import { getEmployeeTasks, type DeviceInfo } from "@/lib/server-api"
 
 interface StaffPortalProps {
-  deviceInfo: unknown
+  deviceInfo: DeviceInfo | undefined
 }
 
 interface EmployeeProfile {
@@ -453,7 +453,7 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <EmployeeSelfAttendance deviceInfo={deviceInfo as unknown} />
+                  <EmployeeSelfAttendance deviceInfo={deviceInfo} />
                 </CardContent>
               </Card>
             )}
