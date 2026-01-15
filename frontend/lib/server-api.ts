@@ -1567,3 +1567,160 @@ export async function getEmployeeByEmployeeId(employeeId: string): Promise<{ suc
     }
   }
 }
+
+
+// Feature Access API Functions
+export type StaffPortalFeature = 'DASHBOARD' | 'PROJECT' | 'TASK_MANAGEMENT'
+
+export type GetMyFeaturesResponse = {
+  success: boolean
+  data?: {
+    allowedFeatures: StaffPortalFeature[]
+  }
+  error?: string
+}
+
+export type GetAllStaffFeatureAccessResponse = {
+  success: boolean
+  data?: Array<{
+    id: string
+    employeeId: string
+    name: string
+    email: string
+    role: string
+    features: Record<StaffPortalFeature, boolean>
+  }>
+  error?: string
+}
+
+export type UpdateFeatureAccessRequest = {
+  features: Array<{
+    feature: StaffPortalFeature
+    isAllowed: boolean
+  }>
+}
+
+export type UpdateFeatureAccessResponse = {
+  success: boolean
+  message: string
+  error?: string
+}
+
+/**
+ * Get session token from NextAuth session
+ */
+async function getSessionToken(): Promise<string | null> {
+  try {
+    const { getSession } = await import('next-auth/react')
+    const session = await getSession()
+    return (session?.user as any)?.sessionToken || null
+  } catch (error) {
+    console.error('Error getting session token:', error)
+    return null
+  }
+}
+
+/**
+ * Get allowed features for the logged-in staff member
+ */
+export async function getMyFeatures(): Promise<GetMyFeaturesResponse> {
+  try {
+    const token = await getSessionToken()
+    if (!token) {
+      return {
+        success: false,
+        error: 'Not authenticated'
+      }
+    }
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/feature-access/my-features`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+    return response
+  } catch (error) {
+    console.error('getMyFeatures error:', error)
+    return {
+      success: false,
+      error: 'Failed to get allowed features'
+    }
+  }
+}
+
+/**
+ * Get all staff with their feature access (Admin only)
+ */
+export async function getAllStaffFeatureAccess(): Promise<GetAllStaffFeatureAccessResponse> {
+  try {
+    const token = await getSessionToken()
+    if (!token) {
+      return {
+        success: false,
+        error: 'Not authenticated'
+      }
+    }
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/feature-access/staff`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+    return response
+  } catch (error) {
+    console.error('getAllStaffFeatureAccess error:', error)
+    return {
+      success: false,
+      error: 'Failed to get staff feature access'
+    }
+  }
+}
+
+/**
+ * Update feature access for a staff member (Admin only)
+ */
+export async function updateStaffFeatureAccess(
+  employeeId: string,
+  data: UpdateFeatureAccessRequest
+): Promise<UpdateFeatureAccessResponse> {
+  try {
+    const token = await getSessionToken()
+    if (!token) {
+      return {
+        success: false,
+        message: '',
+        error: 'Not authenticated'
+      }
+    }
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/feature-access/staff/${employeeId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(data),
+      cache: 'no-store'
+    })
+
+    const response = await res.json()
+    return response
+  } catch (error) {
+    console.error('updateStaffFeatureAccess error:', error)
+    return {
+      success: false,
+      message: '',
+      error: 'Failed to update feature access'
+    }
+  }
+}

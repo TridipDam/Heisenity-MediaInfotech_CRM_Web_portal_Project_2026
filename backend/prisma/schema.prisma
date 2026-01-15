@@ -68,6 +68,7 @@ model Employee {
   ticketComments      TicketComment[]
   ticketAttachments   TicketAttachment[]
   ticketHistory       TicketHistory[]
+  featureAccess       StaffFeatureAccess[]
 
   /**
    * ---------- Relations ----------
@@ -818,4 +819,30 @@ enum TenderAuditAction {
   EMD_REFUNDED
   EMD_FORFEITED
   STATUS_CHANGED
+}
+
+// Staff Feature Access Control
+model StaffFeatureAccess {
+  id          String              @id @default(cuid())
+  employeeId  String
+  feature     StaffPortalFeature
+  isAllowed   Boolean             @default(true)
+  grantedBy   String?             // Admin ID who granted access
+  grantedAt   DateTime            @default(now())
+  updatedBy   String?             // Admin ID who last updated
+  updatedAt   DateTime            @updatedAt
+
+  // Relations
+  employee    Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, feature])
+  @@index([employeeId])
+  @@index([feature])
+  @@map("staff_feature_access")
+}
+
+enum StaffPortalFeature {
+  DASHBOARD
+  PROJECT
+  TASK_MANAGEMENT
 }

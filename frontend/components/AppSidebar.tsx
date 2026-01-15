@@ -95,6 +95,13 @@ const navigationItems = [
         dynamicBadge: true
     },
     {
+        title: "Staff Feature Access",
+        url: "/staff-feature-access",
+        icon: UsersRound,
+        badge: null,
+        description: "Control staff portal features"
+    },
+    {
         title: "Payroll",
         url: "/payroll",
         icon: DollarSign,

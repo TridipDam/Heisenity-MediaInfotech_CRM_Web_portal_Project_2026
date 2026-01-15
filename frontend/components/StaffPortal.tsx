@@ -23,7 +23,7 @@ import { EmployeeSelfAttendance } from "./EmployeeSelfAttendance"
 import { LeaveApplicationForm } from "./LeaveApplicationForm"
 import { LeaveApplicationsList } from "./LeaveApplicationsList"
 import { EmployeeDocuments } from "./EmployeeDocuments"
-import { getEmployeeTasks, type DeviceInfo } from "@/lib/server-api"
+import { type DeviceInfo, getMyFeatures, type StaffPortalFeature } from "@/lib/server-api"
 import { dayClockOut } from "@/lib/server-api"
 import { showToast, showConfirm } from "@/lib/toast-utils"
 
@@ -52,27 +52,13 @@ interface AssignedVehicle {
   assignedAt: string
 }
 
-interface AssignedTask {
-  id: string
-  title: string
-  description: string
-  category?: string
-  location?: string
-  startTime?: string
-  endTime?: string
-  status: string
-  assignedAt: string
-  assignedBy: string
-}
-
 export function StaffPortal({ deviceInfo }: StaffPortalProps) {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null)
   const [assignedVehicle, setAssignedVehicle] = useState<AssignedVehicle | null>(null)
-  const [assignedTasks, setAssignedTasks] = useState<AssignedTask[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'attendance' | 'leave' | 'documents' | 'payroll' | 'vehicle' | 'tasks'>('attendance')
+  const [activeTab, setActiveTab] = useState<'attendance' | 'leave' | 'documents' | 'payroll' | 'vehicle' | 'tasks' | 'dashboard' | 'project'>('attendance')
   const [leaveRefreshTrigger, setLeaveRefreshTrigger] = useState(0)
   const [dayClockOutLoading, setDayClockOutLoading] = useState(false)
   const [todayAttendance, setTodayAttendance] = useState<{
@@ -81,6 +67,7 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
     clockIn?: string
     clockOut?: string
   } | null>(null)
+  const [allowedFeatures, setAllowedFeatures] = useState<StaffPortalFeature[]>([])
 
   useEffect(() => {
     if (status === "loading") return
@@ -94,6 +81,14 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, status, router])
 
+  // Fetch features after profile is loaded
+  useEffect(() => {
+    if (employeeProfile) {
+      fetchAllowedFeatures()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employeeProfile])
+
   // Check today's attendance when profile loads or attendance tab is active
   useEffect(() => {
     if (employeeProfile?.role === 'FIELD_ENGINEER' && activeTab === 'attendance') {
@@ -104,6 +99,36 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeProfile, activeTab])
+
+  const fetchAllowedFeatures = async () => {
+    try {
+      // Only fetch features for IN_OFFICE employees
+      if (employeeProfile?.role !== 'IN_OFFICE') {
+        setAllowedFeatures([])
+        return
+      }
+
+      const response = await getMyFeatures()
+
+      if (response.success && response.data) {
+        setAllowedFeatures(response.data.allowedFeatures)
+      } else {
+        // If no features are set, default to empty array
+        setAllowedFeatures([])
+      }
+    } catch (error) {
+      console.error('Error fetching allowed features:', error)
+      setAllowedFeatures([])
+    }
+  }
+
+  const hasFeatureAccess = (feature: StaffPortalFeature): boolean => {
+    // Field engineers don't use feature access system
+    if (employeeProfile?.role === 'FIELD_ENGINEER') {
+      return false
+    }
+    return allowedFeatures.includes(feature)
+  }
 
   const fetchEmployeeProfile = async () => {
     try {
@@ -121,10 +146,6 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
       }
 
       // Fetch assigned vehicle (only for field engineers)
-      const vehicleResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/vehicles/employee/${employeeId}`)
-      
-      // Fetch assigned tasks (only for field engineers)
-      let tasksData: AssignedTask[] = []
       if (profileResponse.ok) {
         const result = await profileResponse.json()
         if (result.success && result.data) {
@@ -139,19 +160,6 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
             status: result.data.status,
             role: result.data.role // Include role information
           })
-          
-          // Fetch tasks only for field engineers
-          if (result.data?.role === 'FIELD_ENGINEER') {
-            try {
-              const tasksResponse = await getEmployeeTasks(employeeId)
-              if (tasksResponse.success && tasksResponse.data?.tasks) {
-                tasksData = tasksResponse.data.tasks
-              }
-            } catch (error) {
-              console.error('Error fetching tasks:', error)
-            }
-          }
-          setAssignedTasks(tasksData)
         } else {
           // Fallback to session data
           setEmployeeProfile({
@@ -182,6 +190,7 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
       }
 
       // Fetch assigned vehicle (only relevant for field engineers)
+      const vehicleResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/vehicles/employee/${employeeId}`)
       if (vehicleResponse.ok) {
         const vehicleResult = await vehicleResponse.json()
         if (vehicleResult.success && vehicleResult.data) {
@@ -376,6 +385,45 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
                 <MapPin className="h-4 w-4 inline mr-2" />
                 Attendance
               </button>
+              {hasFeatureAccess('DASHBOARD') && (
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'dashboard'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <FileText className="h-4 w-4 inline mr-2" />
+                  Dashboard
+                </button>
+              )}
+              {hasFeatureAccess('PROJECT') && (
+                <button
+                  onClick={() => setActiveTab('project')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'project'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <FileText className="h-4 w-4 inline mr-2" />
+                  Project
+                </button>
+              )}
+              {hasFeatureAccess('TASK_MANAGEMENT') && (
+                <button
+                  onClick={() => setActiveTab('tasks')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'tasks'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <FileText className="h-4 w-4 inline mr-2" />
+                  Task Management
+                </button>
+              )}
               <button
                 onClick={() => setActiveTab('leave')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -410,30 +458,17 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
                 Payroll
               </button>
               {employeeProfile?.role === 'FIELD_ENGINEER' && (
-                <>
-                  <button
-                    onClick={() => setActiveTab('tasks')}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                      activeTab === 'tasks'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <FileText className="h-4 w-4 inline mr-2" />
-                    Tasks
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('vehicle')}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                      activeTab === 'vehicle'
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <Car className="h-4 w-4 inline mr-2" />
-                    Vehicle
-                  </button>
-                </>
+                <button
+                  onClick={() => setActiveTab('vehicle')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'vehicle'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Car className="h-4 w-4 inline mr-2" />
+                  Vehicle
+                </button>
               )}
             </nav>
           </div>
@@ -449,6 +484,13 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
           <p className="text-gray-600 mt-1">
             Here&apos;s your staff portal dashboard. Manage your attendance and view your profile.
           </p>
+          {employeeProfile.role === 'IN_OFFICE' && allowedFeatures.length === 0 && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                ℹ️ Additional features (Dashboard, Project, Task Management) can be enabled by your administrator.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -664,87 +706,91 @@ export function StaffPortal({ deviceInfo }: StaffPortalProps) {
               </Card>
             )}
 
-            {activeTab === 'tasks' && employeeProfile?.role === 'FIELD_ENGINEER' && (
+            {activeTab === 'dashboard' && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
                     <FileText className="h-5 w-5 text-blue-500" />
-                    <span>Assigned Tasks</span>
+                    <span>Dashboard</span>
                   </CardTitle>
                   <p className="text-gray-600">
-                    View your assigned tasks and their locations
+                    Access the main dashboard
                   </p>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {assignedTasks.length > 0 ? (
-                      assignedTasks.map((task) => (
-                        <div key={task.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900 mb-1">{task.title}</h4>
-                              <p className="text-sm text-gray-600 mb-2">{task.description}</p>
-                              
-                              {/* Location Information */}
-                              {task.location && (
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <MapPin className="h-4 w-4 text-blue-500" />
-                                  <span className="text-sm text-gray-700 font-medium">Location:</span>
-                                  <span className="text-sm text-gray-600">{task.location}</span>
-                                </div>
-                              )}
-                              
-                              {/* Task Details */}
-                              <div className="flex flex-wrap gap-4 text-xs text-gray-500">
-                                {task.category && (
-                                  <span className="bg-gray-100 px-2 py-1 rounded">
-                                    {task.category}
-                                  </span>
-                                )}
-                                {task.startTime && (
-                                  <div className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    <span>Start: {new Date(task.startTime).toLocaleTimeString()}</span>
-                                  </div>
-                                )}
-                                {task.endTime && (
-                                  <div className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    <span>End: {new Date(task.endTime).toLocaleTimeString()}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex flex-col items-end space-y-2">
-                              <Badge 
-                                className={
-                                  task.status === 'COMPLETED' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : task.status === 'IN_PROGRESS'
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : task.status === 'CANCELLED'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                                }
-                              >
-                                {task.status.replace('_', ' ')}
-                              </Badge>
-                              <span className="text-xs text-gray-500">
-                                Assigned: {new Date(task.assignedAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-12">
-                        <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Tasks Assigned</h3>
-                        <p className="text-gray-600">
-                          You don&apos;t have any tasks assigned at the moment.
-                        </p>
-                      </div>
-                    )}
+                  <div className="text-center py-12">
+                    <FileText className="h-12 w-12 text-blue-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Main Dashboard</h3>
+                    <p className="text-gray-600 mb-6">
+                      Click below to access the main dashboard
+                    </p>
+                    <Button
+                      onClick={() => router.push('/dashboard')}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Open Dashboard
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === 'project' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <FileText className="h-5 w-5 text-blue-500" />
+                    <span>Project Management</span>
+                  </CardTitle>
+                  <p className="text-gray-600">
+                    Access the project management system
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-12">
+                    <FileText className="h-12 w-12 text-blue-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Project Management System</h3>
+                    <p className="text-gray-600 mb-6">
+                      Click below to access the full project management system
+                    </p>
+                    <Button
+                      onClick={() => router.push('/projects')}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Open Project Management
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === 'tasks' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <FileText className="h-5 w-5 text-blue-500" />
+                    <span>Task Management</span>
+                  </CardTitle>
+                  <p className="text-gray-600">
+                    Access the task management system
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-12">
+                    <FileText className="h-12 w-12 text-blue-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Task Management System</h3>
+                    <p className="text-gray-600 mb-6">
+                      Click below to access the full task management system
+                    </p>
+                    <Button
+                      onClick={() => router.push('/attendance')}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Open Task Management
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

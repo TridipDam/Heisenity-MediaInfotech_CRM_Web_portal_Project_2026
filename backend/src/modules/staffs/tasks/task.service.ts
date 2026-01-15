@@ -136,17 +136,20 @@ export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
       };
 
       if (existingAttendance) {
-        // Update
+        // Update existing attendance with task info
         const updateData: any = {
           ...attendanceDataForWrite
         };
 
-        // FIELD_ENGINEER reset logic
+        // For FIELD_ENGINEER: if they've checked out from a previous task, reset clockOut
+        // This allows them to check in for the new task
         if (employee.role === 'FIELD_ENGINEER' && existingAttendance.clockOut) {
           updateData.clockOut = null;
-          updateData.clockIn = null;
-          console.log(`Resetting clockOut and clockIn for field engineer ${data.employeeId}`);
+          console.log(`Resetting clockOut for field engineer ${data.employeeId} to allow new task check-in`);
         }
+
+        // Preserve existing clockIn and approval status - don't reset them
+        // The employee will check in themselves, and approval is only needed once per day
 
         console.log(`Updating attendance for employee ${data.employeeId} with status: ${attendanceStatus}`);
 
@@ -155,14 +158,16 @@ export async function createTask(data: CreateTaskData): Promise<TaskRecord> {
           data: updateData
         });
       } else {
-        // Create new attendance record. Use utcMidnightForLocalDate when writing to date field to force the DB to store the intended calendar date.
+        // Create new attendance record WITHOUT clockIn - employee must check in themselves
         console.log(`Creating new attendance record for employee ${data.employeeId} with status: ${attendanceStatus}`);
         await tx.attendance.create({
           data: {
             employeeId: employee.id,
-            // IMPORTANT: write UTC-midnight corresponding to the intended local date
             date: utcMidnightForLocalDate,
             attemptCount: 'ZERO',
+            clockIn: null, // Employee must check in themselves
+            clockOut: null,
+            approvalStatus: 'PENDING', // Will need approval when they check in
             ...attendanceDataForWrite
           }
         });

@@ -71,33 +71,48 @@ export async function createAttendanceRecord(data: {
 
   // Handle check-in/check-out logic based on employee role
   if (data.action === 'check-in') {
-    // For FIELD_ENGINEER: Allow multiple check-ins (reset clockOut to allow new check-in)
+    // For FIELD_ENGINEER: Allow multiple check-ins (once per task)
     // For IN_OFFICE: Only allow one check-in per day
     if (employee.role === 'FIELD_ENGINEER') {
       // Field engineers can check in multiple times (once per task)
       if (!existing?.clockIn) {
-        // First check-in of the day
-        updateData.clockIn = new Date()
+        // First check-in of the day - DO NOT set clockIn yet, wait for approval
         updateData.approvalStatus = 'PENDING'
-      } else if (existing?.clockOut) {
-        // Already checked out, allow new check-in for new task
-        updateData.clockIn = new Date()
-        updateData.clockOut = null // Reset checkout to allow new task cycle
+        // Store the pending check-in time in taskStartTime temporarily
+        const taskCheckinTime = new Date().toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+        updateData.taskStartTime = taskCheckinTime
+      } else if (existing?.approvalStatus === 'APPROVED') {
+        // Already approved for the day
+        if (existing?.clockOut) {
+          // Checked out from previous task, allow new check-in
+          updateData.clockOut = null
+        }
+        // Update task start time for the new task
+        const taskCheckinTime = new Date().toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+        updateData.taskStartTime = taskCheckinTime
       }
     } else {
       // IN_OFFICE employees: single check-in per day
       if (!existing?.clockIn) {
-        updateData.clockIn = new Date()
+        // First check-in of the day - DO NOT set clockIn yet, wait for approval
         updateData.approvalStatus = 'PENDING'
+        // Store the pending check-in time in taskStartTime temporarily
+        const taskCheckinTime = new Date().toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+        updateData.taskStartTime = taskCheckinTime
       }
     }
-    
-    const taskCheckinTime = new Date().toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-    updateData.taskStartTime = taskCheckinTime
     
     if (existing && existing.source === 'ADMIN' && !existing.clockIn) {
       updateData.clockOut = null
@@ -145,9 +160,15 @@ export async function createAttendanceRecord(data: {
 
   } else {
     if (!existing?.clockIn && (data.status === 'PRESENT' || data.status === 'LATE')) {
-      updateData.clockIn = new Date()
-      // Set approval status to PENDING for first check-in
+      // First check-in of the day - DO NOT set clockIn yet, wait for approval
       updateData.approvalStatus = 'PENDING'
+      // Store the pending check-in time in taskStartTime temporarily
+      const taskCheckinTime = new Date().toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+      updateData.taskStartTime = taskCheckinTime
     }
   }
 
@@ -166,7 +187,7 @@ export async function createAttendanceRecord(data: {
         data: {
           employeeId: employee.id,
           date: today,
-          clockIn: updateData.clockIn || (data.status === 'PRESENT' || data.status === 'LATE' ? new Date() : null),
+          clockIn: null, // DO NOT set clockIn on first check-in, wait for approval
           clockOut: updateData.clockOut || null,
           ipAddress: data.ipAddress,
           deviceInfo: deviceString,
@@ -177,7 +198,8 @@ export async function createAttendanceRecord(data: {
           locked: false,
           attemptCount: 'ZERO',
           approvalStatus: updateData.approvalStatus || 'PENDING',
-          taskId: updateData.taskId !== undefined ? updateData.taskId : null // <-- fix: persist taskId (or null) on create to be explicit
+          taskId: updateData.taskId !== undefined ? updateData.taskId : null,
+          taskStartTime: updateData.taskStartTime || null // Store pending check-in time
         }
       })
 
@@ -351,15 +373,22 @@ export async function approveAttendance(attendanceId: string, adminId: string, r
       return { success: false, message: 'Attendance already approved' }
     }
 
-    // Update attendance record
+    // Update attendance record - NOW set the clockIn time on approval
+    const updateData: any = {
+      approvalStatus: 'APPROVED',
+      approvedBy: adminId,
+      approvedAt: new Date(),
+      approvalReason: reason || 'Approved by admin'
+    }
+
+    // Set clockIn time if it's not already set (first check-in approval)
+    if (!attendance.clockIn) {
+      updateData.clockIn = new Date()
+    }
+
     const updatedAttendance = await prisma.attendance.update({
       where: { id: attendanceId },
-      data: {
-        approvalStatus: 'APPROVED',
-        approvedBy: adminId,
-        approvedAt: new Date(),
-        approvalReason: reason || 'Approved by admin'
-      }
+      data: updateData
     })
 
     // Create notification for approval
@@ -380,6 +409,7 @@ export async function approveAttendance(attendanceId: string, adminId: string, r
         employeeRole: attendance.employee.role,
         approvedBy: adminId,
         approvedAt: updatedAttendance.approvedAt?.toISOString(),
+        clockIn: updatedAttendance.clockIn?.toISOString(),
         reason: reason || 'Approved by admin'
       }
     })

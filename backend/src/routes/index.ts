@@ -6,6 +6,7 @@ import teamRoutes from '../modules/staffs/teams/team.route';
 import vehicleRoutes from '../modules/staffs/vehicles/vehicle.route';
 import leaveRoutes from '../modules/staffs/leave/leave.route';
 import documentRoutes from '../modules/staffs/documents/document.route';
+import featureAccessRoutes from '../modules/staffs/featureAccess/featureAccess.route';
 import notificationRoutes from '../modules/notifications/notification.routes';
 import tenderRoutes from '../modules/tenders/tender.route';
 import databaseRoutes from './database.route';
@@ -42,6 +43,9 @@ router.use('/leave', leaveRoutes);
 
 // Mount document routes
 router.use('/documents', documentRoutes);
+
+// Mount feature access routes
+router.use('/feature-access', featureAccessRoutes);
 
 // Mount notification routes
 router.use('/', notificationRoutes);
