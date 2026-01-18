@@ -132,9 +132,10 @@ export function StaffPortal() {
   }
 
   const hasFeatureAccess = (feature: StaffPortalFeature): boolean => {
-    // Field engineers have access to all features by default (no feature restriction system)
+    // Field engineers have no access to staff features by default
     if (employeeProfile?.role === 'FIELD_ENGINEER') {
-      return true
+      const fieldEngineerBuiltInFeatures = ['VEHICLE', 'PAYROLL']
+      return fieldEngineerBuiltInFeatures.includes(feature)
     }
     // IN_OFFICE employees need explicit feature access
     return allowedFeatures.includes(feature)

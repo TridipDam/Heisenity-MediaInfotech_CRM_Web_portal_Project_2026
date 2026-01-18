@@ -1618,7 +1618,7 @@ export async function getEmployeeByEmployeeId(employeeId: string): Promise<{ suc
 
 
 // Feature Access API Functions
-export type StaffPortalFeature = 'DASHBOARD' | 'PROJECT' | 'TASK_MANAGEMENT' | 'PAYROLL' | 'VEHICLE' | 'CUSTOMERS' | 'EMPLOYEES' | 'TEAMS' | 'TENDERS' | 'STOCK' | 'LEAVE_MANAGEMENT' | 'FIELD_ENGINEER_ATTENDANCE' | 'INOFFICE_ATTENDANCE' | 'CUSTOMER_SUPPORT_REQUESTS' | 'STAFF_FEATURE_ACCESS'
+export type StaffPortalFeature = 'DASHBOARD' | 'PROJECT' | 'TASK_MANAGEMENT' | 'CUSTOMERS' | 'EMPLOYEES' | 'TEAMS' | 'TENDERS' | 'STOCK' | 'LEAVE_MANAGEMENT' | 'FIELD_ENGINEER_ATTENDANCE' | 'INOFFICE_ATTENDANCE' | 'CUSTOMER_SUPPORT_REQUESTS' | 'STAFF_FEATURE_ACCESS'
 
 export type GetMyFeaturesResponse = {
   success: boolean
