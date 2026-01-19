@@ -14,6 +14,9 @@ const PORT = process.env.PORT || 3001
 // Middleware 
 app.use(helmet())
 
+// Handle preflight requests
+app.options('*', cors())
+
 // CORS configuration - allow multiple origins
 const allowedOrigins = [
   'http://localhost:3000',
@@ -42,8 +45,26 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Accept',
+    'Accept-Version',
+    'Authorization',
+    'Content-Length',
+    'Content-MD5',
+    'Content-Type',
+    'Date',
+    'X-Api-Version',
+    'X-CSRF-Token',
+    'X-Requested-With',
+    'Cache-Control',
+    'Pragma',
+    'If-Match',
+    'If-Modified-Since',
+    'If-None-Match',
+    'If-Unmodified-Since'
+  ],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
