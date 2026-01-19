@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "prisma generate && tsc && copyfiles -u 2 \"src/swagger/openapi.yaml\" dist/swagger",
-    "postbuild": "prisma migrate deploy",
+    "postbuild": "node scripts/force-migrate.js",
     "start": "node -r ./module-alias-register.js dist/index.js",
     "lint": "eslint src/**/*.ts",
     "test": "jest",
@@ -24,7 +24,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
-    "migrate:production": "node scripts/migrate-production.js"
+    "migrate:production": "node scripts/migrate-production.js",
+    "force-migrate": "node scripts/force-migrate.js"
   },
   "dependencies": {
     "@crmdemo/shared": "*",

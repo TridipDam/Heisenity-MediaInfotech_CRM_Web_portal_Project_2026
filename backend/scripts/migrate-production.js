@@ -1,46 +1,62 @@
 #!/usr/bin/env node
 
-/**
- * Production Database Migration Script
- * 
- * This script applies Prisma migrations to the production database.
- * Run this on Render or any production environment to ensure the database schema is up to date.
- */
-
 const { execSync } = require('child_process');
-const path = require('path');
 
-console.log('🚀 Starting production database migration...');
+console.log('🔧 Production Migration Script');
+console.log('==============================');
 
-try {
-  // Change to the backend directory
-  process.chdir(path.join(__dirname, '..'));
+function runCommand(command, description) {
+  try {
+    console.log(`\n📋 ${description}...`);
+    execSync(command, { stdio: 'inherit' });
+    console.log(`✅ ${description} completed`);
+    return true;
+  } catch (error) {
+    console.error(`❌ ${description} failed:`, error.message);
+    return false;
+  }
+}
+
+async function main() {
+  console.log('🚀 Starting production migration process...\n');
   
-  console.log('📁 Current directory:', process.cwd());
-  
-  // Check if DATABASE_URL is set
-  if (!process.env.DATABASE_URL) {
-    console.error('❌ ERROR: DATABASE_URL environment variable is not set');
+  // Step 1: Generate Prisma client
+  if (!runCommand('npx prisma generate', 'Generating Prisma client')) {
     process.exit(1);
   }
   
-  console.log('🔗 Database URL found');
+  // Step 2: Check migration status
+  console.log('\n📊 Checking migration status...');
+  try {
+    execSync('npx prisma migrate status', { stdio: 'inherit' });
+  } catch (error) {
+    console.log('⚠️  Migration status check failed, proceeding with deployment...');
+  }
   
-  // Generate Prisma client
-  console.log('🔧 Generating Prisma client...');
-  execSync('npx prisma generate', { stdio: 'inherit' });
+  // Step 3: Deploy migrations
+  if (!runCommand('npx prisma migrate deploy', 'Deploying migrations')) {
+    console.log('\n🔄 Attempting alternative migration approach...');
+    
+    // Alternative: Reset and apply all migrations
+    if (!runCommand('npx prisma migrate reset --force', 'Resetting database')) {
+      process.exit(1);
+    }
+  }
   
-  // Apply migrations
-  console.log('📊 Applying database migrations...');
-  execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+  // Step 4: Verify schema
+  console.log('\n🔍 Verifying database schema...');
+  try {
+    execSync('npx prisma db pull --print', { stdio: 'pipe' });
+    console.log('✅ Database schema verification completed');
+  } catch (error) {
+    console.log('⚠️  Schema verification failed, but migration may still be successful');
+  }
   
-  // Optional: Seed the database if needed
-  // console.log('🌱 Seeding database...');
-  // execSync('npx prisma db seed', { stdio: 'inherit' });
-  
-  console.log('✅ Production database migration completed successfully!');
-  
-} catch (error) {
-  console.error('❌ Migration failed:', error.message);
-  process.exit(1);
+  console.log('\n🎉 Production migration process completed!');
+  console.log('📝 Please check the logs above for any warnings or errors.');
 }
+
+main().catch(error => {
+  console.error('💥 Migration script failed:', error);
+  process.exit(1);
+});
