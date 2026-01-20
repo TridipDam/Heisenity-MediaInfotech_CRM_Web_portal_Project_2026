@@ -391,15 +391,6 @@ export function StaffPortal() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push("/employee-attendance")}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Full Attendance
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
                 onClick={handleLogout}
                 className="text-gray-600 hover:text-gray-900"
               >
