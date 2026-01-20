@@ -6,7 +6,6 @@ export class TicketController {
   async createTicket(req: Request, res: Response) {
     try {
       const {
-        title,
         description,
         category,
         priority,
@@ -50,15 +49,14 @@ export class TicketController {
       console.log('Controller - authenticatedUser:', authenticatedUser);
 
       // Validate required fields
-      if (!title || !description || !category || !priority || !finalReporterId) {
+      if (!description || !category || !priority || !finalReporterId) {
         return res.status(400).json({
           success: false,
-          message: 'Missing required fields: title, description, category, priority, reporterId'
+          message: 'Missing required fields: description, category, priority, reporterId'
         });
       }
 
       const ticket = await ticketService.createTicket({
-        title,
         description,
         category: category as TicketCategory,
         priority: priority as TicketPriority,
@@ -202,7 +200,6 @@ export class TicketController {
     try {
       const { id } = req.params;
       const {
-        title,
         description,
         category,
         priority,
@@ -223,7 +220,6 @@ export class TicketController {
       }
 
       const ticket = await ticketService.updateTicket(id, {
-        title,
         description,
         category: category as TicketCategory,
         priority: priority as TicketPriority,

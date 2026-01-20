@@ -37,7 +37,7 @@ export function TicketAssignmentFlowTest() {
 
   const handleAssignAgent = (ticket: any) => {
     // This simulates the exact navigation that happens in TicketTable
-    router.push(`/task-management?ticketId=${ticket.id}&ticketTitle=${encodeURIComponent(ticket.title)}&action=assign`)
+    router.push(`/task-management?ticketId=${ticket.id}&action=assign`)
   }
 
   return (
@@ -77,7 +77,7 @@ export function TicketAssignmentFlowTest() {
                       {ticket.category}
                     </span>
                   </div>
-                  <h3 className="font-medium text-gray-900">{ticket.title}</h3>
+                  <h3 className="font-medium text-gray-900">{ticket.ticketId}</h3>
                   <p className="text-sm text-gray-600 mt-1">{ticket.description}</p>
                 </div>
                 <Button 

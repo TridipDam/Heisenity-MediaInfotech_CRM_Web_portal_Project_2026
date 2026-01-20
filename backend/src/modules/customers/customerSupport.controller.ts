@@ -281,8 +281,7 @@ export class CustomerSupportController {
       const ticket = await prisma.supportTicket.create({
         data: {
           ticketId,
-          title: title || `Support Request from ${request.customer.name}`,
-          description: request.message,
+          description: title ? `${title}: ${request.message}` : request.message,
           category: category || 'OTHER',
           priority: priority || 'MEDIUM',
           status: 'OPEN',

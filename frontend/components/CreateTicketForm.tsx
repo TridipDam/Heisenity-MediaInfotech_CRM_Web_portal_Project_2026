@@ -117,7 +117,6 @@ export function CreateTicketForm() {
   }, [])
   
   const [formData, setFormData] = React.useState({
-    title: "",
     description: "",
     category: "",
     priority: "",
@@ -247,11 +246,6 @@ export function CreateTicketForm() {
     e.preventDefault()
     
     // Basic validation
-    if (!formData.title.trim()) {
-      showToast.error('Please enter a ticket title')
-      return
-    }
-    
     if (!formData.description.trim()) {
       showToast.error('Please enter a description')
       return
@@ -276,7 +270,6 @@ export function CreateTicketForm() {
       const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tickets`, {
         method: 'POST',
         body: JSON.stringify({
-          title: formData.title,
           description: formData.description,
           category: formData.category,
           priority: formData.priority,
@@ -320,7 +313,6 @@ export function CreateTicketForm() {
 
   const resetForm = () => {
     setFormData({
-      title: "",
       description: "",
       category: "",
       priority: "",
@@ -349,7 +341,7 @@ export function CreateTicketForm() {
     resetForm()
   }
 
-  const isFormValid = formData.title && formData.description && formData.category && formData.priority
+  const isFormValid = formData.description && formData.category && formData.priority
 
   return (
     <>
@@ -473,20 +465,6 @@ export function CreateTicketForm() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="md:col-span-2">
-                    <Label htmlFor="title" className="text-sm font-medium text-foreground">
-                      Ticket Title *
-                    </Label>
-                    <Input
-                      id="title"
-                      placeholder="Brief description of the issue"
-                      value={formData.title}
-                      onChange={(e) => handleInputChange("title", e.target.value)}
-                      className="mt-1"
-                      required
-                    />
-                  </div>
-                  
                   <div>
                     <Label htmlFor="category" className="text-sm font-medium text-foreground">
                       Category *

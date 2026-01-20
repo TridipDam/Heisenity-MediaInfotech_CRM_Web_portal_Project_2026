@@ -2194,7 +2194,6 @@ export type TicketStatus = 'OPEN' | 'RESOLVED' | 'CLOSED'
 export type Ticket = {
   id: string
   ticketId: string
-  title: string
   description: string
   category: TicketCategory
   priority: TicketPriority

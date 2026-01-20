@@ -384,7 +384,6 @@ model ProjectProduct {
 model SupportTicket {
   id                     String                  @id @default(cuid())
   ticketId               String                  @unique
-  title                  String
   description            String
   category               TicketCategory
   priority               TicketPriority

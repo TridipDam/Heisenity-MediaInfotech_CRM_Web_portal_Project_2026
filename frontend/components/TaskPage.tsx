@@ -1241,7 +1241,7 @@ export function TaskPage() {
                                   }`}>
                                     {ticket.priority}
                                   </span>
-                                  <span className="text-xs text-gray-500">- {ticket.title}</span>
+                                  <span className="text-xs text-gray-500">- {ticket.ticketId}</span>
                                 </div>
                               ) : 'Ticket not found'
                             })()

@@ -52,7 +52,6 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
   }, [])
   
   const [formData, setFormData] = React.useState({
-    title: "",
     description: "",
     category: "",
     priority: "",
@@ -187,7 +186,6 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
 
   const resetForm = () => {
     setFormData({
-      title: "",
       description: "",
       category: "",
       priority: "",
@@ -202,11 +200,6 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!formData.title.trim()) {
-      showToast.error('Please enter a ticket title')
-      return
-    }
     
     if (!formData.description.trim()) {
       showToast.error('Please enter a description')
@@ -232,7 +225,6 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
       const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tickets`, {
         method: 'POST',
         body: JSON.stringify({
-          title: formData.title,
           description: formData.description,
           category: formData.category,
           priority: formData.priority,
@@ -277,7 +269,7 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
     }
   }
 
-  const isFormValid = formData.title && formData.description && formData.category && formData.priority
+  const isFormValid = formData.description && formData.category && formData.priority
 
   if (showSuccess) {
     return (
@@ -426,20 +418,6 @@ export function StaffTicketForm({ employeeId, onSuccess }: StaffTicketFormProps)
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2">
-              <Label htmlFor="title" className="text-sm font-medium text-foreground">
-                Ticket Title *
-              </Label>
-              <Input
-                id="title"
-                placeholder="Brief description of the issue"
-                value={formData.title}
-                onChange={(e) => handleInputChange("title", e.target.value)}
-                className="mt-1"
-                required
-              />
-            </div>
-            
             <div>
               <Label htmlFor="category" className="text-sm font-medium text-foreground">
                 Category *

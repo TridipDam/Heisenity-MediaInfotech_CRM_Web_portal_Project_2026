@@ -181,7 +181,6 @@ async function getTicketDataForExport(filters: TicketExportFilters) {
 
   return tickets.map((ticket: any) => ({
     ticketId: ticket.ticketId,
-    title: ticket.title,
     description: ticket.description,
     category: ticket.category,
     priority: ticket.priority,
@@ -260,7 +259,6 @@ export const exportTicketsToExcel = async (req: Request, res: Response) => {
     // Define headers matching the table structure
     const headers = [
       'Ticket ID',
-      'Title', 
       'Description',
       'Category',
       'Priority',
@@ -310,7 +308,6 @@ export const exportTicketsToExcel = async (req: Request, res: Response) => {
     data.forEach((ticket: any, index: number) => {
       const row = sheet.addRow([
         ticket.ticketId,
-        ticket.title,
         ticket.description,
         ticket.category,
         getPriorityLabel(ticket.priority),

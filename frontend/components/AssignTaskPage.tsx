@@ -90,7 +90,6 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
   // Handle URL parameters for pre-selecting ticket
   React.useEffect(() => {
     const ticketId = searchParams.get('ticketId')
-    const ticketTitle = searchParams.get('ticketTitle')
     
     if (ticketId) {
       // Pre-select the ticket when it's available in the tickets list
@@ -99,12 +98,12 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
         if (ticketExists) {
           setSelectedTicket(ticketId)
           
-          // Pre-populate task title with ticket title if provided
-          if (ticketTitle && !taskData.title) {
+          // Pre-populate task title with ticket info if provided
+          if (!taskData.title) {
             setTaskData(prev => ({
               ...prev,
-              title: `Task for: ${decodeURIComponent(ticketTitle)}`,
-              description: `Task created to handle ticket: ${ticketExists.ticketId} - ${ticketExists.title}`
+              title: `Task for ticket: ${ticketExists.ticketId}`,
+              description: `Task created to handle ticket: ${ticketExists.ticketId} - ${ticketExists.description.substring(0, 50)}...`
             }))
           }
         }
@@ -487,7 +486,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                                       {ticket.priority}
                                     </span>
                                   </div>
-                                  <p className="text-sm text-gray-600 truncate mt-0.5">{ticket.title}</p>
+                                  <p className="text-sm text-gray-600 truncate mt-0.5">{ticket.ticketId}</p>
                                 </div>
                               </div>
                             </SelectItem>
@@ -520,7 +519,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned }
                                 </div>
                               </div>
                               <div>
-                                <p className="font-medium text-gray-900 mb-1">{ticket.title}</p>
+                                <p className="font-medium text-gray-900 mb-1">{ticket.ticketId}</p>
                                 <p className="text-sm text-gray-600 line-clamp-2">{ticket.description}</p>
                               </div>
                               {ticket.reporter && (

@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma';
 import { NotificationService } from '../notifications/notification.service';
 
 interface CreateTicketInput {
-  title: string;
   description: string;
   category: TicketCategory;
   priority: TicketPriority;
@@ -25,7 +24,6 @@ interface CreateTicketInput {
 }
 
 interface UpdateTicketInput {
-  title?: string;
   description?: string;
   category?: TicketCategory;
   priority?: TicketPriority;
@@ -131,7 +129,6 @@ export class TicketService {
     const ticket = await this.prisma.supportTicket.create({
       data: {
         ticketId,
-        title: data.title,
         description: data.description,
         category: data.category,
         priority: data.priority,
@@ -265,10 +262,10 @@ export class TicketService {
       await notificationService.createAdminNotification({
         type: 'TASK_COMPLETED', // Using existing type, could add TICKET_CREATED if needed
         title: 'New Support Ticket Created',
-        message: `New ${data.priority.toLowerCase()} priority ticket "${data.title}" has been created by ${ticket.reporter?.name || 'Unknown User'}.`,
+        message: `New ${data.priority.toLowerCase()} priority ticket "${data.description.substring(0, 50)}..." has been created by ${ticket.reporter?.name || 'Unknown User'}.`,
         data: {
           ticketId: ticket.ticketId,
-          title: data.title,
+          description: data.description,
           priority: data.priority,
           category: data.category,
           reporterId: data.reporterId,
@@ -318,7 +315,6 @@ export class TicketService {
 
     if (filters?.search) {
       where.OR = [
-        { title: { contains: filters.search, mode: 'insensitive' } },
         { ticketId: { contains: filters.search, mode: 'insensitive' } },
         { description: { contains: filters.search, mode: 'insensitive' } },
       ];
@@ -585,7 +581,6 @@ export class TicketService {
     const ticket = await this.prisma.supportTicket.update({
       where: { id },
       data: {
-        title: data.title,
         description: data.description,
         category: data.category,
         priority: data.priority,

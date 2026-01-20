@@ -44,7 +44,6 @@ export default function CustomerSupportRequests() {
   const [isCreateTicketDialogOpen, setIsCreateTicketDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<SupportRequest | null>(null);
   const [ticketForm, setTicketForm] = useState({
-    title: "",
     category: "OTHER",
     priority: "MEDIUM",
     department: "Customer Support",
@@ -118,7 +117,6 @@ export default function CustomerSupportRequests() {
   const openCreateTicketDialog = (request: SupportRequest) => {
     setSelectedRequest(request);
     setTicketForm({
-      title: `Support Request from ${request.customer.name}`,
       category: "OTHER",
       priority: "MEDIUM",
       department: "Customer Support",
@@ -333,15 +331,6 @@ export default function CustomerSupportRequests() {
               <p className="text-sm text-blue-800">
                 <strong>Message:</strong> {selectedRequest?.message}
               </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="title">Ticket Title *</Label>
-              <Input
-                id="title"
-                value={ticketForm.title}
-                onChange={(e) => setTicketForm({ ...ticketForm, title: e.target.value })}
-              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

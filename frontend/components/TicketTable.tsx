@@ -49,7 +49,6 @@ import { exportTicketsToExcel, getFilterLabel, type ExportFilters } from "@/lib/
 interface Ticket {
   id: string
   ticketId: string
-  title: string
   description: string
   category: string
   priority: string
@@ -159,7 +158,7 @@ function TicketDetailsModal({ ticket, isOpen, onClose }: TicketDetailsModalProps
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Ticket className="h-5 w-5 text-blue-600" />
-            {ticket.title}
+            {ticket.ticketId}
           </DialogTitle>
         </DialogHeader>
         
@@ -268,7 +267,6 @@ interface EditTicketModalProps {
 
 function EditTicketModal({ ticket, isOpen, onClose, onSave }: EditTicketModalProps) {
   const [formData, setFormData] = React.useState({
-    title: '',
     description: '',
     category: '',
     priority: '',
@@ -282,7 +280,6 @@ function EditTicketModal({ ticket, isOpen, onClose, onSave }: EditTicketModalPro
   React.useEffect(() => {
     if (ticket) {
       setFormData({
-        title: ticket.title || '',
         description: ticket.description || '',
         category: ticket.category || '',
         priority: ticket.priority || '',
@@ -325,15 +322,6 @@ function EditTicketModal({ ticket, isOpen, onClose, onSave }: EditTicketModalPro
         </DialogHeader>
         
         <div className="space-y-4">
-          <div>
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-            />
-          </div>
-
           <div>
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -546,7 +534,7 @@ export function TicketTable() {
 
   const handleAssignAgent = (ticket: Ticket) => {
     // Navigate to task management page which includes assign task functionality
-    router.push(`/task-management?ticketId=${ticket.id}&ticketTitle=${encodeURIComponent(ticket.title)}&action=assign`)
+    router.push(`/task-management?ticketId=${ticket.id}&action=assign`)
   }
 
   const handleDeleteTicket = (ticket: Ticket) => {
@@ -680,7 +668,7 @@ export function TicketTable() {
 
   // Filter data based on search and filters
   const filteredData = tickets.filter(ticket => {
-    const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = ticket.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          ticket.ticketId.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (ticket.assignee?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (ticket.reporter?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -1009,8 +997,8 @@ export function TicketTable() {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-foreground truncate">{ticket.title}</p>
-                          <p className="text-sm text-muted-foreground">{ticket.ticketId} • {ticket.category}</p>
+                          <p className="font-semibold text-foreground truncate">{ticket.ticketId}</p>
+                          <p className="text-sm text-muted-foreground">{ticket.category}</p>
                           <p className="text-xs text-muted-foreground line-clamp-1">{ticket.description}</p>
                           {ticket._count && ticket._count.comments > 0 && (
                             <div className="flex items-center gap-1 mt-1">

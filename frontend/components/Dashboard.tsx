@@ -50,7 +50,6 @@ type LeaveApplication = {
 type TicketData = {
   id: string
   ticketId: string
-  title: string
   priority: string
   status: string
   reporter?: {
@@ -439,7 +438,7 @@ export function Dashboard() {
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{ticket.title}</p>
+                        <p className="font-medium text-gray-900">{ticket.ticketId}</p>
                         <p className="text-sm text-gray-500">
                           {ticket.ticketId} • {ticket.reporter?.name || 'Unknown'}
                         </p>
