@@ -389,6 +389,25 @@ export class TicketController {
       });
     }
   }
+
+  async fixAdminTickets(req: Request, res: Response) {
+    try {
+      const result = await ticketService.fixExistingAdminTickets();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Admin tickets fix completed',
+        data: result
+      });
+    } catch (error) {
+      console.error('Error fixing admin tickets:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fix admin tickets',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
 }
 
 export const ticketController = new TicketController();

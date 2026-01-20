@@ -14,6 +14,9 @@ router.get('/count', ticketController.getTicketCount.bind(ticketController));
 // Get my tickets (tickets created by logged-in user) (requires auth)
 router.get('/my-tickets', authenticateToken, ticketController.getMyTickets.bind(ticketController));
 
+// Fix admin tickets utility (requires auth)
+router.post('/fix-admin-tickets', authenticateToken, ticketController.fixAdminTickets.bind(ticketController));
+
 // Apply authentication middleware to remaining routes
 router.use(authenticateToken);
 

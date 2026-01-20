@@ -81,30 +81,49 @@ export class TicketService {
       // Check if reporter is an admin
       const admin = await this.prisma.admin.findUnique({
         where: { adminId: data.reporterId },
-        select: { id: true, name: true, email: true }
+        select: { id: true, name: true, email: true, adminId: true }
       });
 
       if (admin) {
-        console.log('Found admin reporter:', admin.id);
-        // For admin reporters, we'll set reporterId to null and store admin info in custom fields
-        // This avoids the foreign key constraint issue
-        reporterId = null;
+        console.log('Found admin reporter:', admin.id, admin.name);
+        
+        // Create or find an employee record for this specific admin
+        const adminEmployeeId = `ADMIN_${admin.adminId}`;
+        let adminEmployee = await this.prisma.employee.findUnique({
+          where: { employeeId: adminEmployeeId },
+          select: { id: true, name: true }
+        });
+        
+        if (!adminEmployee) {
+          // Create an employee record for this admin with their actual details
+          adminEmployee = await this.prisma.employee.create({
+            data: {
+              name: `${admin.name} (Admin)`, // Add (Admin) suffix to distinguish
+              employeeId: adminEmployeeId,
+              email: admin.email,
+              password: 'N/A', // Admins don't use employee login
+              role: 'IN_OFFICE',
+              status: 'ACTIVE'
+            },
+            select: { id: true, name: true }
+          });
+          console.log('Created admin employee record:', adminEmployee.id, adminEmployee.name);
+        } else {
+          // Update existing record to ensure it has the correct name
+          adminEmployee = await this.prisma.employee.update({
+            where: { employeeId: adminEmployeeId },
+            data: {
+              name: `${admin.name} (Admin)`,
+              email: admin.email
+            },
+            select: { id: true, name: true }
+          });
+          console.log('Updated admin employee record:', adminEmployee.id, adminEmployee.name);
+        }
+        
+        reporterId = adminEmployee.id;
       } else {
-        console.log('Neither employee nor admin found. Available admins:');
-        const allAdmins = await this.prisma.admin.findMany({
-          select: { adminId: true, name: true }
-        });
-        console.log('Admins:', allAdmins);
-        
-        console.log('Available employees:');
-        const allEmployees = await this.prisma.employee.findMany({
-          select: { employeeId: true, name: true }
-        });
-        console.log('Employees:', allEmployees);
-        
-        // Instead of throwing an error, let's create the ticket without a reporter
-        // This allows the system to work even if there's a mismatch
-        console.log('Creating ticket without reporter (system ticket)');
+        console.log('Neither employee nor admin found for reporterId:', data.reporterId);
         reporterId = null;
       }
     }
@@ -149,53 +168,43 @@ export class TicketService {
 
     // Create attachments if provided
     if (data.attachments && data.attachments.length > 0) {
-      // For admin reporters, we need to find an admin ID to use as uploader
+      // Use the same reporterId we found above for uploads
       let uploaderId = reporterId;
       
       if (!uploaderId) {
-        // This is an admin reporter, find the admin ID
-        const admin = await this.prisma.admin.findUnique({
-          where: { adminId: data.reporterId },
+        // If no reporter was found, create a generic system employee
+        let systemEmployee = await this.prisma.employee.findUnique({
+          where: { employeeId: 'SYSTEM' },
           select: { id: true }
         });
         
-        if (admin) {
-          // Create a system employee record for admin uploads if it doesn't exist
-          let systemEmployee = await this.prisma.employee.findUnique({
-            where: { employeeId: 'ADMIN_SYSTEM' },
+        if (!systemEmployee) {
+          systemEmployee = await this.prisma.employee.create({
+            data: {
+              name: 'System',
+              employeeId: 'SYSTEM',
+              email: 'system@local',
+              password: 'N/A',
+              role: 'IN_OFFICE',
+              status: 'ACTIVE'
+            },
             select: { id: true }
           });
-          
-          if (!systemEmployee) {
-            systemEmployee = await this.prisma.employee.create({
-              data: {
-                name: 'Admin System',
-                employeeId: 'ADMIN_SYSTEM',
-                email: 'admin@system.local',
-                password: 'N/A',
-                role: 'IN_OFFICE',
-                status: 'ACTIVE'
-              },
-              select: { id: true }
-            });
-          }
-          
-          uploaderId = systemEmployee.id;
         }
+        
+        uploaderId = systemEmployee.id;
       }
 
-      if (uploaderId) {
-        await this.prisma.ticketAttachment.createMany({
-          data: data.attachments.map(attachment => ({
-            ticketId: ticket.id,
-            fileName: attachment.fileName,
-            filePath: attachment.filePath,
-            fileSize: attachment.fileSize,
-            mimeType: attachment.mimeType,
-            uploadedBy: uploaderId,
-          }))
-        });
-      }
+      await this.prisma.ticketAttachment.createMany({
+        data: data.attachments.map(attachment => ({
+          ticketId: ticket.id,
+          fileName: attachment.fileName,
+          filePath: attachment.filePath,
+          fileSize: attachment.fileSize,
+          mimeType: attachment.mimeType,
+          uploadedBy: uploaderId,
+        }))
+      });
     }
 
     // Create history entry - find changedBy employee or admin
@@ -530,31 +539,42 @@ export class TicketService {
       // If not found as employee, try as admin
       const admin = await this.prisma.admin.findUnique({
         where: { adminId: changedBy },
-        select: { id: true }
+        select: { id: true, name: true, email: true, adminId: true }
       });
       
       if (admin) {
-        // For admin users, we need to create or find a system employee record
-        let systemEmployee = await this.prisma.employee.findUnique({
-          where: { employeeId: 'ADMIN_SYSTEM' },
+        // Create or find an employee record for this specific admin
+        const adminEmployeeId = `ADMIN_${admin.adminId}`;
+        let adminEmployee = await this.prisma.employee.findUnique({
+          where: { employeeId: adminEmployeeId },
           select: { id: true }
         });
         
-        if (!systemEmployee) {
-          systemEmployee = await this.prisma.employee.create({
+        if (!adminEmployee) {
+          // Create an employee record for this admin with their actual details
+          adminEmployee = await this.prisma.employee.create({
             data: {
-              name: 'Admin System',
-              employeeId: 'ADMIN_SYSTEM',
-              email: 'admin@system.local',
-              password: 'N/A',
+              name: `${admin.name} (Admin)`,
+              employeeId: adminEmployeeId,
+              email: admin.email,
+              password: 'N/A', // Admins don't use employee login
               role: 'IN_OFFICE',
               status: 'ACTIVE'
             },
             select: { id: true }
           });
+        } else {
+          // Update existing record to ensure it has the correct name
+          await this.prisma.employee.update({
+            where: { employeeId: adminEmployeeId },
+            data: {
+              name: `${admin.name} (Admin)`,
+              email: admin.email
+            }
+          });
         }
         
-        internalUserId = systemEmployee.id;
+        internalUserId = adminEmployee.id;
       }
     }
 
@@ -676,6 +696,117 @@ export class TicketService {
     });
 
     return comment;
+  }
+
+  // Utility method to fix existing admin tickets that show "Admin System"
+  async fixExistingAdminTickets() {
+    try {
+      console.log('Starting comprehensive ticket reporter fix...');
+      
+      // Step 1: Find and fix generic "ADMIN_SYSTEM" employee
+      const adminSystemEmployee = await this.prisma.employee.findUnique({
+        where: { employeeId: 'ADMIN_SYSTEM' },
+        select: { id: true }
+      });
+
+      let fixedCount = 0;
+
+      if (adminSystemEmployee) {
+        // Update the generic admin system to have a better name
+        await this.prisma.employee.update({
+          where: { employeeId: 'ADMIN_SYSTEM' },
+          data: {
+            name: 'System Administrator',
+          }
+        });
+
+        // Count tickets using this generic admin
+        const genericAdminTickets = await this.prisma.supportTicket.count({
+          where: { reporterId: adminSystemEmployee.id }
+        });
+        
+        fixedCount += genericAdminTickets;
+        console.log(`Updated ${genericAdminTickets} tickets using generic ADMIN_SYSTEM`);
+      }
+
+      // Step 2: Find all tickets and ensure their reporters have proper names
+      const allTickets = await this.prisma.supportTicket.findMany({
+        include: {
+          reporter: {
+            select: {
+              id: true,
+              employeeId: true,
+              name: true,
+              email: true
+            }
+          }
+        }
+      });
+
+      console.log(`Found ${allTickets.length} total tickets to check`);
+
+      // Step 3: Check for any admin-pattern employee IDs that need updating
+      for (const ticket of allTickets) {
+        if (ticket.reporter && ticket.reporter.employeeId.startsWith('ADMIN_')) {
+          const adminId = ticket.reporter.employeeId.replace('ADMIN_', '');
+          
+          // Find the corresponding admin
+          const admin = await this.prisma.admin.findUnique({
+            where: { adminId: adminId },
+            select: { name: true, email: true }
+          });
+
+          if (admin && ticket.reporter.name !== `${admin.name} (Admin)`) {
+            // Update the employee record to have the correct admin name
+            await this.prisma.employee.update({
+              where: { id: ticket.reporter.id },
+              data: {
+                name: `${admin.name} (Admin)`,
+                email: admin.email
+              }
+            });
+            console.log(`Updated employee record for admin: ${admin.name}`);
+          }
+        }
+      }
+
+      // Step 4: Get summary of current state
+      const reporterSummary = await this.prisma.supportTicket.groupBy({
+        by: ['reporterId'],
+        _count: {
+          reporterId: true
+        },
+        where: {
+          reporterId: {
+            not: null
+          }
+        }
+      });
+
+      const reporterDetails = await Promise.all(
+        reporterSummary.map(async (group) => {
+          const employee = await this.prisma.employee.findUnique({
+            where: { id: group.reporterId! },
+            select: { employeeId: true, name: true }
+          });
+          return {
+            employeeId: employee?.employeeId,
+            name: employee?.name,
+            ticketCount: group._count.reporterId
+          };
+        })
+      );
+
+      return { 
+        fixed: fixedCount,
+        totalTickets: allTickets.length,
+        reporterSummary: reporterDetails,
+        message: `Fixed ${fixedCount} tickets and updated reporter information` 
+      };
+    } catch (error) {
+      console.error('Error fixing admin tickets:', error);
+      throw error;
+    }
   }
 
   async getTicketCount(filters?: {
