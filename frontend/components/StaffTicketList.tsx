@@ -21,10 +21,15 @@ interface TicketData {
   id: string
   ticketId: string
   description: string
-  category: string
+  categoryId: string
   priority: string
   status: string
   department?: string
+  category?: {
+    id: string
+    name: string
+    description?: string
+  }
   assignee?: {
     name: string
     employeeId: string
@@ -207,7 +212,7 @@ export function StaffTicketList({ employeeId, refreshTrigger }: StaffTicketListP
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-foreground truncate">{ticket.ticketId}</p>
-                      <p className="text-sm text-muted-foreground">{ticket.category}</p>
+                      <p className="text-sm text-muted-foreground">{ticket.category?.name || 'Unknown Category'}</p>
                       <p className="text-xs text-muted-foreground line-clamp-1">{ticket.description}</p>
                       {ticket._count && ticket._count.comments > 0 && (
                         <div className="flex items-center gap-1 mt-1">

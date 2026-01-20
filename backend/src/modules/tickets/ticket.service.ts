@@ -1,10 +1,10 @@
-import { PrismaClient, TicketCategory, TicketPriority, TicketStatus, TicketHistoryAction } from '@prisma/client';
+import { PrismaClient, TicketPriority, TicketStatus, TicketHistoryAction } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { NotificationService } from '../notifications/notification.service';
 
 interface CreateTicketInput {
   description: string;
-  category: TicketCategory;
+  categoryId: string;
   priority: TicketPriority;
   department?: string;
   assigneeId?: string;
@@ -25,7 +25,7 @@ interface CreateTicketInput {
 
 interface UpdateTicketInput {
   description?: string;
-  category?: TicketCategory;
+  categoryId?: string;
   priority?: TicketPriority;
   status?: TicketStatus;
   department?: string;
@@ -130,7 +130,7 @@ export class TicketService {
       data: {
         ticketId,
         description: data.description,
-        category: data.category,
+        categoryId: data.categoryId,
         priority: data.priority,
         department: data.department,
         assigneeId: data.assigneeId,
@@ -267,7 +267,7 @@ export class TicketService {
           ticketId: ticket.ticketId,
           description: data.description,
           priority: data.priority,
-          category: data.category,
+          categoryId: data.categoryId,
           reporterId: data.reporterId,
           reporterName: ticket.reporter?.name || 'Unknown User',
           assigneeId: data.assigneeId,
@@ -286,7 +286,7 @@ export class TicketService {
   async getTickets(filters?: {
     status?: TicketStatus;
     priority?: TicketPriority;
-    category?: TicketCategory;
+    categoryId?: string;
     reporterId?: string;
     assigneeId?: string;
     search?: string;
@@ -301,8 +301,8 @@ export class TicketService {
       where.priority = filters.priority;
     }
 
-    if (filters?.category) {
-      where.category = filters.category;
+    if (filters?.categoryId) {
+      where.categoryId = filters.categoryId;
     }
 
     if (filters?.reporterId) {
@@ -323,6 +323,13 @@ export class TicketService {
     const tickets = await this.prisma.supportTicket.findMany({
       where,
       include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          }
+        },
         assignee: {
           select: {
             id: true,
@@ -582,7 +589,7 @@ export class TicketService {
       where: { id },
       data: {
         description: data.description,
-        category: data.category,
+        categoryId: data.categoryId,
         priority: data.priority,
         status: data.status,
         department: data.department,
@@ -807,7 +814,7 @@ export class TicketService {
   async getTicketCount(filters?: {
     status?: TicketStatus;
     priority?: TicketPriority;
-    category?: TicketCategory;
+    categoryId?: string;
   }): Promise<number> {
     try {
       const whereClause: any = {};
@@ -820,8 +827,8 @@ export class TicketService {
         whereClause.priority = filters.priority;
       }
 
-      if (filters?.category) {
-        whereClause.category = filters.category;
+      if (filters?.categoryId) {
+        whereClause.categoryId = filters.categoryId;
       }
 
       const count = await this.prisma.supportTicket.count({

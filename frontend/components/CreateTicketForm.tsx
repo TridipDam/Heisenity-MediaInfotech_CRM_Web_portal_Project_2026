@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CategorySelector } from "@/components/CategorySelector"
 import { Badge } from "@/components/ui/badge"
 import { 
   ArrowLeft, 
@@ -118,7 +119,7 @@ export function CreateTicketForm() {
   
   const [formData, setFormData] = React.useState({
     description: "",
-    category: "",
+    categoryId: "",
     priority: "",
     department: "",
     dueDate: getDefaultDueDate(),
@@ -251,7 +252,7 @@ export function CreateTicketForm() {
       return
     }
     
-    if (!formData.category) {
+    if (!formData.categoryId) {
       showToast.error('Please select a category')
       return
     }
@@ -271,7 +272,7 @@ export function CreateTicketForm() {
         method: 'POST',
         body: JSON.stringify({
           description: formData.description,
-          category: formData.category,
+          categoryId: formData.categoryId,
           priority: formData.priority,
           department: formData.department || undefined,
           dueDate: formData.dueDate || undefined,
@@ -314,7 +315,7 @@ export function CreateTicketForm() {
   const resetForm = () => {
     setFormData({
       description: "",
-      category: "",
+      categoryId: "",
       priority: "",
       department: "",
       dueDate: getDefaultDueDate(),
@@ -341,7 +342,7 @@ export function CreateTicketForm() {
     resetForm()
   }
 
-  const isFormValid = formData.description && formData.category && formData.priority
+  const isFormValid = formData.description && formData.categoryId && formData.priority
 
   return (
     <>
@@ -469,22 +470,13 @@ export function CreateTicketForm() {
                     <Label htmlFor="category" className="text-sm font-medium text-foreground">
                       Category *
                     </Label>
-                    <Select value={formData.category} onValueChange={(value) => handleInputChange("category", value)}>
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="AUTHENTICATION">Authentication</SelectItem>
-                        <SelectItem value="HARDWARE">Hardware</SelectItem>
-                        <SelectItem value="SOFTWARE">Software</SelectItem>
-                        <SelectItem value="NETWORK">Network</SelectItem>
-                        <SelectItem value="SECURITY">Security</SelectItem>
-                        <SelectItem value="DATABASE">Database</SelectItem>
-                        <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                        <SelectItem value="SETUP">Setup</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="mt-1">
+                      <CategorySelector
+                        value={formData.categoryId}
+                        onValueChange={(value) => handleInputChange("categoryId", value)}
+                        placeholder="Select category"
+                      />
+                    </div>
                   </div>
 
                   <div>

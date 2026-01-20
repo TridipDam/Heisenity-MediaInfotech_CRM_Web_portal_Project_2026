@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
 import { ticketService } from './ticket.service';
-import { TicketCategory, TicketPriority, TicketStatus } from '@prisma/client';
+import { TicketPriority, TicketStatus } from '@prisma/client';
 
 export class TicketController {
   async createTicket(req: Request, res: Response) {
     try {
       const {
         description,
-        category,
+        categoryId,
         priority,
         department,
         assigneeId,
@@ -49,16 +49,16 @@ export class TicketController {
       console.log('Controller - authenticatedUser:', authenticatedUser);
 
       // Validate required fields
-      if (!description || !category || !priority || !finalReporterId) {
+      if (!description || !categoryId || !priority || !finalReporterId) {
         return res.status(400).json({
           success: false,
-          message: 'Missing required fields: description, category, priority, reporterId'
+          message: 'Missing required fields: description, categoryId, priority, reporterId'
         });
       }
 
       const ticket = await ticketService.createTicket({
         description,
-        category: category as TicketCategory,
+        categoryId,
         priority: priority as TicketPriority,
         department,
         assigneeId,
@@ -89,12 +89,12 @@ export class TicketController {
 
   async getTickets(req: Request, res: Response) {
     try {
-      const { status, priority, category, reporterId, assigneeId, search } = req.query;
+      const { status, priority, categoryId, reporterId, assigneeId, search } = req.query;
 
       const tickets = await ticketService.getTickets({
         status: status as TicketStatus,
         priority: priority as TicketPriority,
-        category: category as TicketCategory,
+        categoryId: categoryId as string,
         reporterId: reporterId as string,
         assigneeId: assigneeId as string,
         search: search as string,
@@ -201,7 +201,7 @@ export class TicketController {
       const { id } = req.params;
       const {
         description,
-        category,
+        categoryId,
         priority,
         status,
         department,
@@ -221,7 +221,7 @@ export class TicketController {
 
       const ticket = await ticketService.updateTicket(id, {
         description,
-        category: category as TicketCategory,
+        categoryId,
         priority: priority as TicketPriority,
         status: status as TicketStatus,
         department,
@@ -362,12 +362,12 @@ export class TicketController {
 
   async getTicketCount(req: Request, res: Response) {
     try {
-      const { status, priority, category } = req.query;
+      const { status, priority, categoryId } = req.query;
 
       const count = await ticketService.getTicketCount({
         status: status as TicketStatus,
         priority: priority as TicketPriority,
-        category: category as TicketCategory,
+        categoryId: categoryId as string,
       });
 
       return res.status(200).json({

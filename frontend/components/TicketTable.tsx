@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CategorySelector } from "@/components/CategorySelector"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
@@ -50,7 +51,7 @@ interface Ticket {
   id: string
   ticketId: string
   description: string
-  category: string
+  categoryId: string
   priority: string
   status: string
   department?: string
@@ -63,6 +64,11 @@ interface Ticket {
   customerName?: string
   customerId?: string
   customerPhone?: string
+  category?: {
+    id: string
+    name: string
+    description?: string
+  }
   assignee?: {
     id: string
     name: string
@@ -179,7 +185,7 @@ function TicketDetailsModal({ ticket, isOpen, onClose }: TicketDetailsModalProps
             </div>
             <div>
               <Label className="text-sm font-medium text-muted-foreground">Category</Label>
-              <p className="text-sm">{ticket.category}</p>
+              <p className="text-sm">{ticket.category?.name || 'Unknown Category'}</p>
             </div>
           </div>
 
@@ -268,7 +274,7 @@ interface EditTicketModalProps {
 function EditTicketModal({ ticket, isOpen, onClose, onSave }: EditTicketModalProps) {
   const [formData, setFormData] = React.useState({
     description: '',
-    category: '',
+    categoryId: '',
     priority: '',
     status: '',
     department: '',
@@ -281,7 +287,7 @@ function EditTicketModal({ ticket, isOpen, onClose, onSave }: EditTicketModalPro
     if (ticket) {
       setFormData({
         description: ticket.description || '',
-        category: ticket.category || '',
+        categoryId: ticket.categoryId || '',
         priority: ticket.priority || '',
         status: ticket.status || '',
         department: ticket.department || '',
@@ -335,22 +341,11 @@ function EditTicketModal({ ticket, isOpen, onClose, onSave }: EditTicketModalPro
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="category">Category</Label>
-              <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="AUTHENTICATION">Authentication</SelectItem>
-                  <SelectItem value="HARDWARE">Hardware</SelectItem>
-                  <SelectItem value="SOFTWARE">Software</SelectItem>
-                  <SelectItem value="NETWORK">Network</SelectItem>
-                  <SelectItem value="SECURITY">Security</SelectItem>
-                  <SelectItem value="DATABASE">Database</SelectItem>
-                  <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                  <SelectItem value="SETUP">Setup</SelectItem>
-                  <SelectItem value="OTHER">Other</SelectItem>
-                </SelectContent>
-              </Select>
+              <CategorySelector
+                value={formData.categoryId}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
+                placeholder="Select category"
+              />
             </div>
 
             <div>
@@ -672,7 +667,7 @@ export function TicketTable() {
                          ticket.ticketId.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (ticket.assignee?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (ticket.reporter?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = selectedCategory === "all" || ticket.category === selectedCategory
+    const matchesCategory = selectedCategory === "all" || ticket.category?.name === selectedCategory
     const matchesStatus = selectedStatus === "all" || ticket.status === selectedStatus
     const matchesPriority = selectedPriority === "all" || ticket.priority === selectedPriority
     const matchesTab = activeTab === "all" || 
@@ -998,7 +993,7 @@ export function TicketTable() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-semibold text-foreground truncate">{ticket.ticketId}</p>
-                          <p className="text-sm text-muted-foreground">{ticket.category}</p>
+                          <p className="text-sm text-muted-foreground">{ticket.category?.name || 'Unknown Category'}</p>
                           <p className="text-xs text-muted-foreground line-clamp-1">{ticket.description}</p>
                           {ticket._count && ticket._count.comments > 0 && (
                             <div className="flex items-center gap-1 mt-1">

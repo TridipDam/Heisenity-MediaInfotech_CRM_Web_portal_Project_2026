@@ -10,6 +10,7 @@ import featureAccessRoutes from '../modules/staffs/featureAccess/featureAccess.r
 import notificationRoutes from '../modules/notifications/notification.routes';
 import tenderRoutes from '../modules/tenders/tender.route';
 import ticketRoutes from '../modules/tickets/ticket.route';
+import ticketCategoryRoutes from '../modules/tickets/ticketCategory.route';
 import { ticketUploadRouter } from '../modules/tickets/upload.route';
 import customerRoutes from '../modules/customers/customer.route';
 import customerSupportRoutes from '../modules/customers/customerSupport.route';
@@ -75,6 +76,9 @@ router.use('/tenders', tenderRoutes);
 
 // Mount ticket management routes
 router.use('/tickets', ticketRoutes);
+
+// Mount ticket category routes
+router.use('/ticket-categories', ticketCategoryRoutes);
 
 // Mount ticket upload routes
 router.use('/ticket-uploads', ticketUploadRouter);

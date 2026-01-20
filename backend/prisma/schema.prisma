@@ -385,7 +385,7 @@ model SupportTicket {
   id                     String                  @id @default(cuid())
   ticketId               String                  @unique
   description            String
-  category               TicketCategory
+  categoryId             String
   priority               TicketPriority
   status                 TicketStatus            @default(OPEN)
   department             String?
@@ -403,6 +403,7 @@ model SupportTicket {
   customerPhone          String?
   assignedTeamId         String?
   customerSupportRequest CustomerSupportRequest?
+  category               TicketCategory          @relation(fields: [categoryId], references: [id])
   teams                  Team?                   @relation(fields: [assignedTeamId], references: [id])
   assignee               Employee?               @relation("TicketAssignee", fields: [assigneeId], references: [id])
   reporter               Employee?               @relation("TicketReporter", fields: [reporterId], references: [id])
@@ -414,7 +415,7 @@ model SupportTicket {
   @@index([reporterId])
   @@index([status])
   @@index([priority])
-  @@index([category])
+  @@index([categoryId])
   @@index([createdAt])
   @@index([assignedTeamId])
   @@map("support_tickets")
@@ -759,16 +760,17 @@ enum PaymentStatus {
   FULL_DUE
 }
 
-enum TicketCategory {
-  AUTHENTICATION
-  HARDWARE
-  SOFTWARE
-  NETWORK
-  SECURITY
-  DATABASE
-  MAINTENANCE
-  SETUP
-  OTHER
+model TicketCategory {
+  id          String          @id @default(cuid())
+  name        String          @unique
+  description String?
+  isActive    Boolean         @default(true)
+  createdBy   String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  tickets     SupportTicket[]
+
+  @@map("ticket_categories")
 }
 
 enum TicketPriority {

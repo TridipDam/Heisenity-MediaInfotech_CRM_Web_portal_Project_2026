@@ -2195,7 +2195,7 @@ export type Ticket = {
   id: string
   ticketId: string
   description: string
-  category: TicketCategory
+  categoryId: string
   priority: TicketPriority
   status: TicketStatus
   department?: string
@@ -2211,6 +2211,11 @@ export type Ticket = {
   updatedAt: string
   resolvedAt?: string
   closedAt?: string
+  category?: {
+    id: string
+    name: string
+    description?: string
+  }
   assignee?: {
     id: string
     name: string
