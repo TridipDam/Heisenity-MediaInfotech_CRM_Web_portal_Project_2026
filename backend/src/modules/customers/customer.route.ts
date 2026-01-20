@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { CustomerController } from './customer.controller';
 import { authenticateToken } from '@/middleware/auth.middleware';
 import { authenticateCustomer } from '@/middleware/customerAuth.middleware';
+import { exportCustomersToExcel } from './customer.export';
 
 const router = Router();
 
@@ -13,6 +14,7 @@ router.get('/profile', authenticateCustomer, CustomerController.getCustomerProfi
 router.post('/logout', authenticateCustomer, CustomerController.customerLogout);
 
 // Admin protected routes
+router.get('/export/excel', authenticateToken, exportCustomersToExcel);
 router.post('/', authenticateToken, CustomerController.createCustomer);
 router.get('/', authenticateToken, CustomerController.getAllCustomers);
 router.get('/:id', authenticateToken, CustomerController.getCustomer);

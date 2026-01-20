@@ -1099,8 +1099,19 @@ export type ExportParams = {
   quickRange?: 'yesterday' | '15days' | '30days' // Quick date range options
 }
 
-export async function exportAttendanceToExcel(params?: ExportParams): Promise<void> {
+export async function exportAttendanceToExcel(params?: ExportParams, token?: string): Promise<void> {
   try {
+    let authToken: string | undefined = token;
+    
+    // If no token provided, try to get it from session
+    if (!authToken) {
+      authToken = await getSessionToken() || undefined;
+    }
+    
+    if (!authToken) {
+      throw new Error('No authentication token available')
+    }
+
     const searchParams = new URLSearchParams()
     
     if (params?.dateFrom) searchParams.append('dateFrom', params.dateFrom)
@@ -1113,21 +1124,51 @@ export async function exportAttendanceToExcel(params?: ExportParams): Promise<vo
 
     const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/attendance/export/excel${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
     
-    // Create a temporary link to trigger download
+    // Use fetch with authentication
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error(`Export failed: ${response.status} ${response.statusText}`)
+    }
+
+    // Get the blob from response
+    const blob = await response.blob()
+    
+    // Create download link
+    const downloadUrl = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
-    link.href = url
+    link.href = downloadUrl
     link.download = `attendance-report-${new Date().toISOString().split('T')[0]}.xlsx`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    
+    // Clean up the blob URL
+    window.URL.revokeObjectURL(downloadUrl)
   } catch (error) {
     console.error('exportAttendanceToExcel error:', error)
     throw error
   }
 }
 
-export async function exportTasksToExcel(params?: ExportParams): Promise<void> {
+export async function exportTasksToExcel(params?: ExportParams, token?: string): Promise<void> {
   try {
+    let authToken: string | undefined = token;
+    
+    // If no token provided, try to get it from session
+    if (!authToken) {
+      authToken = await getSessionToken() || undefined;
+    }
+    
+    if (!authToken) {
+      throw new Error('No authentication token available')
+    }
+
     const searchParams = new URLSearchParams()
     
     if (params?.dateFrom) searchParams.append('dateFrom', params.dateFrom)
@@ -1140,15 +1181,89 @@ export async function exportTasksToExcel(params?: ExportParams): Promise<void> {
 
     const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/tasks/export/excel${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
     
-    // Create a temporary link to trigger download
+    // Use fetch with authentication
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error(`Export failed: ${response.status} ${response.statusText}`)
+    }
+
+    // Get the blob from response
+    const blob = await response.blob()
+    
+    // Create download link
+    const downloadUrl = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
-    link.href = url
+    link.href = downloadUrl
     link.download = `task-management-report-${new Date().toISOString().split('T')[0]}.xlsx`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    
+    // Clean up the blob URL
+    window.URL.revokeObjectURL(downloadUrl)
   } catch (error) {
     console.error('exportTasksToExcel error:', error)
+    throw error
+  }
+}
+
+export async function exportCustomersToExcel(params?: { search?: string; status?: string; dateFrom?: string; dateTo?: string; quickRange?: 'yesterday' | '15days' | '30days' }, token?: string): Promise<void> {
+  try {
+    let authToken: string | undefined = token;
+    
+    // If no token provided, try to get it from session
+    if (!authToken) {
+      authToken = await getSessionToken() || undefined;
+    }
+    
+    if (!authToken) {
+      throw new Error('No authentication token available')
+    }
+
+    const searchParams = new URLSearchParams()
+    
+    if (params?.search) searchParams.append('search', params.search)
+    if (params?.status) searchParams.append('status', params.status)
+    if (params?.dateFrom) searchParams.append('dateFrom', params.dateFrom)
+    if (params?.dateTo) searchParams.append('dateTo', params.dateTo)
+    if (params?.quickRange) searchParams.append('quickRange', params.quickRange)
+
+    const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/customers/export/excel${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
+    
+    // Use fetch with authentication
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error(`Export failed: ${response.status} ${response.statusText}`)
+    }
+
+    // Get the blob from response
+    const blob = await response.blob()
+    
+    // Create download link
+    const downloadUrl = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = downloadUrl
+    link.download = `customers-export-${new Date().toISOString().split('T')[0]}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    // Clean up the blob URL
+    window.URL.revokeObjectURL(downloadUrl)
+  } catch (error) {
+    console.error('exportCustomersToExcel error:', error)
     throw error
   }
 }

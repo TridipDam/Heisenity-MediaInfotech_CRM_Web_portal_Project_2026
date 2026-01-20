@@ -247,39 +247,6 @@ export function StaffPortal() {
     }
   }
 
-  const checkTodayAttendance = async () => {
-    if (!employeeProfile?.employeeId) return
-
-    try {
-      const { getAttendanceRecords } = await import("@/lib/server-api")
-      const today = new Date().toISOString().split('T')[0]
-      const response = await getAttendanceRecords({
-        employeeId: employeeProfile.employeeId,
-        date: today,
-        limit: 1
-      })
-
-      if (response.success && response.data && response.data.records.length > 0) {
-        const record = response.data.records[0]
-        const attendanceData = {
-          hasCheckedIn: !!record.clockIn,
-          hasClockedOut: !!record.clockOut,
-          clockIn: record.clockIn,
-          clockOut: record.clockOut
-        }
-        console.log('Setting attendance data:', attendanceData) // Debug log
-        setTodayAttendance(attendanceData)
-      } else {
-        setTodayAttendance({
-          hasCheckedIn: false,
-          hasClockedOut: false
-        })
-      }
-    } catch (error) {
-      console.error('Error checking today attendance:', error)
-    }
-  }
-
   const handleDayClockOut = async () => {
     if (!employeeProfile?.employeeId) return
 
@@ -294,8 +261,7 @@ export function StaffPortal() {
             showToast.success('Day clock-out successful!', 'You have clocked out for the day')
             // Play notification sound for successful clock-out
             playNotificationSound()
-            // Refresh attendance status
-            checkTodayAttendance()
+            // Day clock-out successful - no need to refresh attendance status
           } else {
             showToast.error(response.message || 'Failed to clock out')
           }

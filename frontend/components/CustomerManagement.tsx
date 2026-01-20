@@ -22,15 +22,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Edit, Trash2, Eye } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Eye, Download, Filter, Clock, Timer, Calendar, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { exportCustomersToExcel } from "@/lib/server-api";
 
 interface Customer {
   id: string;
@@ -52,6 +52,7 @@ export default function CustomerManagement() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [exportLoading, setExportLoading] = useState<'excel' | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -215,6 +216,48 @@ export default function CustomerManagement() {
     setSelectedCustomer(null);
   };
 
+  const handleExport = async (quickRange?: 'yesterday' | '15days' | '30days') => {
+    try {
+      setExportLoading('excel');
+
+      // Check if we have a valid session
+      if (!session?.user) {
+        toast.error('Please log in to export data');
+        return;
+      }
+
+      const sessionToken = (session.user as any)?.sessionToken;
+      if (!sessionToken) {
+        toast.error('Authentication token not available');
+        return;
+      }
+
+      // Prepare export parameters based on current filters
+      const exportParams: {
+        search?: string;
+        status?: string;
+        quickRange?: 'yesterday' | '15days' | '30days';
+      } = {};
+
+      // If no quick range is specified, use current filters
+      if (!quickRange) {
+        if (searchTerm) {
+          exportParams.search = searchTerm;
+        }
+      } else {
+        exportParams.quickRange = quickRange;
+      }
+
+      await exportCustomersToExcel(exportParams, sessionToken);
+      toast.success('Export successful');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      toast.error('Failed to export to Excel');
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
   if (status === "loading") {
     return (
       <div className="container mx-auto p-6 flex items-center justify-center min-h-screen">
@@ -253,10 +296,58 @@ export default function CustomerManagement() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Customer
-            </Button>
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="border-gray-300 hover:bg-gray-50"
+                    disabled={exportLoading !== null}
+                  >
+                    {exportLoading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-2" />
+                    )}
+                    {exportLoading ? 'Exporting...' : 'Export to Excel'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => handleExport()}
+                    disabled={exportLoading !== null}
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Current Filter
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleExport('yesterday')}
+                    disabled={exportLoading !== null}
+                  >
+                    <Clock className="h-4 w-4 mr-2" />
+                    Yesterday
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleExport('15days')}
+                    disabled={exportLoading !== null}
+                  >
+                    <Timer className="h-4 w-4 mr-2" />
+                    Last 15 Days
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleExport('30days')}
+                    disabled={exportLoading !== null}
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Last 30 Days
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button onClick={() => setIsCreateDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Customer
+              </Button>
+            </div>
           </div>
 
           <div className="border rounded-lg">
