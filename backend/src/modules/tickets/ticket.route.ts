@@ -5,20 +5,23 @@ import { exportTicketsToExcel } from './ticket.export';
 
 const router = Router();
 
-// Apply authentication middleware to all routes
-router.use(authenticateToken);
+// Export tickets to Excel (requires auth)
+router.get('/export/excel', authenticateToken, exportTicketsToExcel);
 
-// Export tickets to Excel
-router.get('/export/excel', exportTicketsToExcel);
+// Get ticket count (public endpoint for sidebar)
+router.get('/count', ticketController.getTicketCount.bind(ticketController));
+
+// Get my tickets (tickets created by logged-in user) (requires auth)
+router.get('/my-tickets', authenticateToken, ticketController.getMyTickets.bind(ticketController));
+
+// Apply authentication middleware to remaining routes
+router.use(authenticateToken);
 
 // Create a new ticket
 router.post('/', ticketController.createTicket.bind(ticketController));
 
 // Get all tickets (with optional filters)
 router.get('/', ticketController.getTickets.bind(ticketController));
-
-// Get my tickets (tickets created by logged-in user)
-router.get('/my-tickets', ticketController.getMyTickets.bind(ticketController));
 
 // Get ticket by ID
 router.get('/:id', ticketController.getTicketById.bind(ticketController));

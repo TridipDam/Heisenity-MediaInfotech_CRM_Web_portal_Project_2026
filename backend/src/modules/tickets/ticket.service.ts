@@ -515,6 +515,53 @@ export class TicketService {
       throw new Error('Ticket not found');
     }
 
+    // Find the internal user ID from the display ID (employeeId or adminId)
+    let internalUserId: string | null = null;
+    
+    // First try to find as employee
+    const employee = await this.prisma.employee.findUnique({
+      where: { employeeId: changedBy },
+      select: { id: true }
+    });
+    
+    if (employee) {
+      internalUserId = employee.id;
+    } else {
+      // If not found as employee, try as admin
+      const admin = await this.prisma.admin.findUnique({
+        where: { adminId: changedBy },
+        select: { id: true }
+      });
+      
+      if (admin) {
+        // For admin users, we need to create or find a system employee record
+        let systemEmployee = await this.prisma.employee.findUnique({
+          where: { employeeId: 'ADMIN_SYSTEM' },
+          select: { id: true }
+        });
+        
+        if (!systemEmployee) {
+          systemEmployee = await this.prisma.employee.create({
+            data: {
+              name: 'Admin System',
+              employeeId: 'ADMIN_SYSTEM',
+              email: 'admin@system.local',
+              password: 'N/A',
+              role: 'IN_OFFICE',
+              status: 'ACTIVE'
+            },
+            select: { id: true }
+          });
+        }
+        
+        internalUserId = systemEmployee.id;
+      }
+    }
+
+    if (!internalUserId) {
+      throw new Error(`User not found: ${changedBy}`);
+    }
+
     const ticket = await this.prisma.supportTicket.update({
       where: { id },
       data: {
@@ -551,7 +598,7 @@ export class TicketService {
       }
     });
 
-    // Create history entries for changes
+    // Create history entries for changes using the internal user ID
     if (data.status && data.status !== existingTicket.status) {
       await this.prisma.ticketHistory.create({
         data: {
@@ -560,7 +607,7 @@ export class TicketService {
           field: 'status',
           oldValue: existingTicket.status,
           newValue: data.status,
-          changedBy,
+          changedBy: internalUserId,
         }
       });
     }
@@ -573,7 +620,7 @@ export class TicketService {
           field: 'priority',
           oldValue: existingTicket.priority,
           newValue: data.priority,
-          changedBy,
+          changedBy: internalUserId,
         }
       });
     }
@@ -629,6 +676,37 @@ export class TicketService {
     });
 
     return comment;
+  }
+
+  async getTicketCount(filters?: {
+    status?: TicketStatus;
+    priority?: TicketPriority;
+    category?: TicketCategory;
+  }): Promise<number> {
+    try {
+      const whereClause: any = {};
+
+      if (filters?.status) {
+        whereClause.status = filters.status;
+      }
+
+      if (filters?.priority) {
+        whereClause.priority = filters.priority;
+      }
+
+      if (filters?.category) {
+        whereClause.category = filters.category;
+      }
+
+      const count = await this.prisma.supportTicket.count({
+        where: whereClause
+      });
+
+      return count;
+    } catch (error) {
+      console.error('Error getting ticket count:', error);
+      throw error;
+    }
   }
 }
 

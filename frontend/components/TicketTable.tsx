@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -464,6 +465,7 @@ function EditTicketModal({ ticket, isOpen, onClose, onSave }: EditTicketModalPro
 
 export function TicketTable() {
   const router = useRouter()
+  const { data: session } = useSession()
   const { authenticatedFetch, isAuthenticated } = useAuthenticatedFetch()
   const [searchTerm, setSearchTerm] = React.useState("")
   const [selectedCategory, setSelectedCategory] = React.useState("all")
@@ -554,11 +556,23 @@ export function TicketTable() {
 
   const handleUpdateTicket = async (ticketId: string, updates: Partial<Ticket>) => {
     try {
+      // Get current user's employee ID from session
+      let changedBy = 'system' // fallback
+      
+      if (session?.user) {
+        const userType = (session.user as any).userType
+        if (userType === 'ADMIN') {
+          changedBy = (session.user as any).adminId || 'admin'
+        } else if (userType === 'EMPLOYEE') {
+          changedBy = (session.user as any).employeeId || 'employee'
+        }
+      }
+
       const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/tickets/${ticketId}`, {
         method: 'PUT',
         body: JSON.stringify({
           ...updates,
-          changedBy: 'current-user' // This should be the current user's employee ID
+          changedBy
         })
       })
 

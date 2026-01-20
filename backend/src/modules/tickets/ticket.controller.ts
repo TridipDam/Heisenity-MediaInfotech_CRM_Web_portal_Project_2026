@@ -363,6 +363,32 @@ export class TicketController {
       });
     }
   }
+
+  async getTicketCount(req: Request, res: Response) {
+    try {
+      const { status, priority, category } = req.query;
+
+      const count = await ticketService.getTicketCount({
+        status: status as TicketStatus,
+        priority: priority as TicketPriority,
+        category: category as TicketCategory,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          total: count
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching ticket count:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch ticket count',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
 }
 
 export const ticketController = new TicketController();
