@@ -42,7 +42,7 @@ router.get('/debug/all', async (req, res) => {
       }))
     })
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message })
+    res.status(500).json({ success: false, error: (error as Error).message })
   }
 })
 router.delete('/:documentId', adminOnly, documentController.deleteDocument)

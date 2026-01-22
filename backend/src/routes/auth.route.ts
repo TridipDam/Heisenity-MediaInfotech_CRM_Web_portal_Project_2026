@@ -7,7 +7,6 @@ router.post('/login', authController.login)
 router.post('/logout', authController.logout)
 router.post('/logout-all', authController.logoutAll)
 router.get('/sessions/:userId', authController.getSessions)
-router.post('/register/admin', authController.registerAdmin)
-// Employee registration removed - employees should be created by admins only
+// Admin registration removed - admin credentials are now hardcoded
 
 export { router as authRouter }

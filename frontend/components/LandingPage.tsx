@@ -17,8 +17,10 @@ import {
   User,
   Eye,
   EyeOff,
+  ArrowRight,
 } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
 
 interface LandingPageProps {
   onGetStarted: (type?: string) => void
@@ -239,103 +241,8 @@ function StaffLoginCard() {
   )
 }
 
-// Admin Login Card Component
-function AdminLoginCard() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [isSignup, setIsSignup] = useState(false)
-  const router = useRouter()
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-
-    const formData = new FormData(e.currentTarget)
-    const email = formData.get("email") as string
-    const password = formData.get("password") as string
-    const adminId = formData.get("adminId") as string
-    const name = formData.get("name") as string
-    const phone = formData.get("phone") as string
-
-    try {
-      if (isSignup) {
-        // Handle admin registration
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/register/admin`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name,
-            adminId,
-            email,
-            password,
-            phone
-          })
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          let errorMessage = errorData.error || "Registration failed"
-          
-          // Make error messages more user-friendly
-          if (errorMessage.includes("email already exists")) {
-            errorMessage = "An admin account with this email already exists."
-            // Auto-switch to login mode after showing error
-            setTimeout(() => {
-              setIsSignup(false)
-              setError("Please use the login form below with your existing credentials.")
-            }, 2000)
-          } else if (errorMessage.includes("adminId already exists")) {
-            errorMessage = "This Admin ID is already taken. Please choose a different Admin ID."
-          }
-          
-          setError(errorMessage)
-          return
-        }
-
-        // After successful registration, automatically sign in
-        setError("") // Clear any previous errors
-        const result = await signIn("credentials", {
-          email,
-          password,
-          adminId,
-          userType: "ADMIN",
-          redirect: false
-        })
-
-        if (result?.error) {
-          setError("Registration successful but login failed. Please try logging in manually.")
-        } else {
-          // Show success message briefly before redirect
-          setError("")
-          router.push("/dashboard")
-        }
-      } else {
-        // Handle admin login
-        const result = await signIn("credentials", {
-          email,
-          password,
-          adminId,
-          userType: "ADMIN",
-          redirect: false
-        })
-
-        if (result?.error) {
-          setError("Invalid credentials")
-        } else {
-          router.push("/dashboard")
-        }
-      }
-    } catch {
-      setError("An error occurred")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
+// Admin Access Link Component
+function AdminAccessLink() {
   return (
     <Card className="group p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border-2 border-blue-200 transition-all duration-300 hover:shadow-xl hover:from-blue-100 hover:to-blue-150">
       <CardHeader className="text-center pb-4">
@@ -344,127 +251,21 @@ function AdminLoginCard() {
         </div>
         <CardTitle className="text-2xl font-bold text-gray-900">Admin Portal</CardTitle>
         <CardDescription className="text-gray-600 text-sm">
-          Full system control and user management
+          System administrator access
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex justify-center mb-4">
-          <div className="flex bg-gray-200 rounded-lg p-1">
-            <Button
-              type="button"
-              variant={!isSignup ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setIsSignup(false)}
-              className={`px-4 py-2 text-sm rounded-md transition-all ${
-                !isSignup 
-                  ? "bg-blue-600 text-white shadow-sm" 
-                  : "text-gray-600 hover:text-gray-800"
-              }`}
-            >
-              Login
-            </Button>
-            <Button
-              type="button"
-              variant={isSignup ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setIsSignup(true)}
-              className={`px-4 py-2 text-sm rounded-md transition-all ${
-                isSignup 
-                  ? "bg-blue-600 text-white shadow-sm" 
-                  : "text-gray-600 hover:text-gray-800"
-              }`}
-            >
-              Create Admin
-            </Button>
-          </div>
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-700">
+            <strong>Note:</strong> Dedicated admin login page with enhanced security.
+          </p>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {isSignup && (
-            <div className="space-y-2">
-              <Label htmlFor="admin-name" className="text-sm font-medium">Full Name</Label>
-              <Input
-                id="admin-name"
-                name="name"
-                type="text"
-                required
-                placeholder="Enter full name"
-                className="w-full"
-              />
-            </div>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="admin-id" className="text-sm font-medium">Admin ID</Label>
-            <Input
-              id="admin-id"
-              name="adminId"
-              type="text"
-              required
-              placeholder="Enter admin ID"
-              className="w-full"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="admin-email" className="text-sm font-medium">Email</Label>
-            <Input
-              id="admin-email"
-              name="email"
-              type="email"
-              required
-              placeholder="Enter your email"
-              className="w-full"
-            />
-          </div>
-          {isSignup && (
-            <div className="space-y-2">
-              <Label htmlFor="admin-phone" className="text-sm font-medium">Phone (Optional)</Label>
-              <Input
-                id="admin-phone"
-                name="phone"
-                type="tel"
-                placeholder="Enter phone number"
-                className="w-full"
-              />
-            </div>
-          )}
-          <div className="space-y-2">
-            <Label htmlFor="admin-password" className="text-sm font-medium">Password</Label>
-            <div className="relative">
-              <Input
-                id="admin-password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                required
-                placeholder="Enter your password"
-                className="w-full pr-10"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4 text-gray-400" />
-                ) : (
-                  <Eye className="h-4 w-4 text-gray-400" />
-                )}
-              </Button>
-            </div>
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <Button 
-            type="submit" 
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl py-3 shadow-lg"
-            disabled={isLoading}
-          >
-            {isLoading 
-              ? (isSignup ? "Creating..." : "Signing in...") 
-              : (isSignup ? "Create Admin" : "Admin Access")
-            }
+        <Link href="/admin-login">
+          <Button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl py-3 shadow-lg group">
+            <span>Go to Admin Login</span>
+            <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
           </Button>
-        </form>
+        </Link>
       </CardContent>
     </Card>
   )
@@ -515,8 +316,8 @@ export default function LandingPage({ onGetStarted, isLoggedIn = false, userProf
                 {/* Staff Login */}
                 <StaffLoginCard />
 
-                {/* Admin Login */}
-                <AdminLoginCard />
+                {/* Admin Access Link */}
+                <AdminAccessLink />
               </div>
             )}
 

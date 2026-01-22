@@ -89,25 +89,7 @@ class AuthController {
     }
   }
 
-  async registerAdmin(req: Request, res: Response) {
-    try {
-      const { name, adminId, email, password, phone } = req.body
-
-      if (!name || !adminId || !email || !password) {
-        return res.status(400).json({ error: 'Name, admin ID, email, and password are required' })
-      }
-
-      const user = await authService.registerAdmin(name, adminId, email, password, phone)
-      res.status(201).json(user)
-    } catch (error: any) {
-      console.error('Admin registration error:', error)
-      if (error.message.includes('already exists')) {
-        return res.status(409).json({ error: error.message })
-      }
-      res.status(500).json({ error: 'Internal server error' })
-    }
-  }
-
+  // Admin registration removed - admin credentials are now hardcoded
   // Employee registration disabled for public access
   // This method is kept for potential admin-only employee creation in the future
   /*

@@ -6,6 +6,7 @@ class AuthService {
   async authenticate(email: string, password: string, employeeId?: string, adminId?: string, userType?: string, deviceInfo?: string, ipAddress?: string) {
     try {
       if (userType?.toLowerCase() === 'admin') {
+        // Look for admin in database
         const admin = await prisma.admin.findFirst({
           where: { 
             AND: [
@@ -81,54 +82,6 @@ class AuthService {
     } catch (error) {
       console.error('Authentication error:', error)
       return null
-    }
-  }
-
-  async registerAdmin(name: string, adminId: string, email: string, password: string, phone?: string) {
-    try {
-      // Check if admin already exists
-      const existingAdmin = await prisma.admin.findFirst({
-        where: {
-          OR: [
-            { email },
-            { adminId }
-          ]
-        }
-      })
-
-      if (existingAdmin) {
-        if (existingAdmin.email === email) {
-          throw new Error('Admin with this email already exists')
-        }
-        if (existingAdmin.adminId === adminId) {
-          throw new Error('Admin with this ID already exists')
-        }
-      }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 12)
-
-      // Create admin
-      const admin = await prisma.admin.create({
-        data: {
-          name,
-          adminId,
-          email,
-          password: hashedPassword,
-          phone
-        }
-      })
-
-      return {
-        id: admin.id,
-        name: admin.name,
-        email: admin.email,
-        adminId: admin.adminId,
-        userType: 'ADMIN'
-      }
-    } catch (error) {
-      console.error('Admin registration error:', error)
-      throw error
     }
   }
 

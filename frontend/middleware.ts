@@ -50,7 +50,7 @@ export default withAuth(
         const { pathname } = req.nextUrl
         
         // Public pages that don't require authentication
-        const publicPaths = ['/landing']
+        const publicPaths = ['/landing', '/admin-login']
         if (publicPaths.includes(pathname)) {
           return true
         }
