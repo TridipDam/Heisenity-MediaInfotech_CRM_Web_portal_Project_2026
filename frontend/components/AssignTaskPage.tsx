@@ -71,11 +71,19 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
     const fetchData = async () => {
       try {
         setLoading(true)
-        const [employeesResponse, teamsResponse, vehiclesResponse, ticketsResponse] = await Promise.all([
+
+        const [
+          employeesResponse,
+          teamsResponse,
+          vehiclesResponse,
+          openTicketsResponse,
+          resolvedTicketsResponse
+        ] = await Promise.all([
           getAllEmployees({ limit: 1000, role: 'FIELD_ENGINEER' }),
           getAllTeams(),
           getAllVehicles(),
-          getAllTickets({ status: 'OPEN', limit: 100 })
+          getAllTickets({ status: 'OPEN', limit: 100 }),
+          getAllTickets({ status: 'RESOLVED', limit: 100 })
         ])
 
         if (employeesResponse.success && employeesResponse.data) {
@@ -90,16 +98,29 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
           setVehicles(vehiclesResponse.data)
         }
 
-        if (ticketsResponse.success && ticketsResponse.data) {
-          setTickets(ticketsResponse.data)
-        }
+        // ✅ merge OPEN + RESOLVED tickets
+        const mergedTickets: Ticket[] = [
+          ...(openTicketsResponse.success && openTicketsResponse.data
+            ? openTicketsResponse.data
+            : []),
+          ...(resolvedTicketsResponse.success && resolvedTicketsResponse.data
+            ? resolvedTicketsResponse.data
+            : [])
+        ]
+
+        // optional: de-duplicate (safe guard)
+        const uniqueTickets = Array.from(
+          new Map(mergedTickets.map(t => [t.id, t])).values()
+        )
+
+        setTickets(uniqueTickets)
+
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
         setLoading(false)
       }
     }
-
     fetchData()
   }, [])
 
@@ -128,7 +149,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
   }, [searchParams, tickets, taskData.title])
 
   React.useEffect(() => {
-    if (!isEdit || !editTask) return
+    if (!isEdit || !editTask || tickets.length === 0) return
 
     setTaskData({
       title: editTask.title,
@@ -138,7 +159,13 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
     })
 
     if (editTask.relatedTicketId) {
+      const exists = tickets.find(
+        t => t.id === editTask.relatedTicketId
+      )
+
       setSelectedTicket(editTask.relatedTicketId)
+    } else {
+      setSelectedTicket('none')
     }
 
     if (editTask.employeeId) {
@@ -158,7 +185,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
       setOriginalVehicleId(null)
       setSelectedVehicle("none")
     }
-  }, [isEdit, editTask])
+  }, [isEdit, editTask, tickets])
 
 
   // Filter employees based on search term and selected team (only for individual assignment)
