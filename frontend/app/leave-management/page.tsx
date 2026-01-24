@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { AdminLeaveManagement } from "@/components/AdminLeaveManagement"
 import { AdminDocumentUpload } from "@/components/AdminDocumentUpload"
+import { AdminCredentialReset } from "@/components/AdminCredentialReset"
 import { Loader2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { ReEnableClockInDialog } from "@/components/ReEnableClockInDialog"
 
 
@@ -93,6 +93,11 @@ export default function LeaveManagementPage() {
             <p className="text-gray-600">Upload and manage documents for employees</p>
           </div>
           <AdminDocumentUpload adminId={adminId} adminName={adminName} />
+        </div>
+
+        {/* Admin Credential Reset */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <AdminCredentialReset adminId={adminId} adminName={adminName} />
         </div>
       </div>
     </div>
