@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { User, Phone, Mail, MapPin, LogOut, Upload, X, FileText, Image, File, CheckCircle, Ticket } from "lucide-react";
+import { User, Phone, Mail, MapPin, LogOut, Upload, X, FileText, Image, File, CheckCircle, Users, MessageSquare, Edit3 } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { playNotificationSound } from "@/lib/notification-sound";
@@ -19,6 +19,14 @@ interface CustomerData {
   phone: string;
   email?: string;
   address?: string;
+}
+
+interface UploadedDocument {
+  filename: string;
+  originalName: string;
+  path: string;
+  size: number;
+  mimetype: string;
 }
 
 // Success popup component
@@ -189,7 +197,7 @@ export default function CustomerPortal() {
     
     try {
       const token = localStorage.getItem("customerToken");
-      let uploadedDocuments: any[] = [];
+      let uploadedDocuments: UploadedDocument[] = [];
 
       // Upload files first if any
       if (uploadedFiles.length > 0) {
@@ -289,8 +297,8 @@ export default function CustomerPortal() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                <User className="h-6 w-6 text-purple-600" />
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <Users className="h-6 w-6 text-blue-600" />
               </div>
               <div>
                 <h1 className="font-bold text-gray-900">Customer Portal</h1>
@@ -309,10 +317,10 @@ export default function CustomerPortal() {
       <main className="container mx-auto px-6 py-8">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Welcome Card */}
-          <Card>
+          <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50">
             <CardHeader>
-              <CardTitle>Welcome, {customer.name}!</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-2xl text-gray-900">Welcome, {customer.name}!</CardTitle>
+              <CardDescription className="text-gray-600">
                 Your customer portal dashboard
               </CardDescription>
             </CardHeader>
@@ -320,43 +328,53 @@ export default function CustomerPortal() {
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="flex items-start space-x-3">
-                    <User className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <User className="w-4 h-4 text-blue-600" />
+                    </div>
                     <div>
                       <p className="text-sm text-gray-500">Customer ID</p>
-                      <p className="font-medium">{customer.customerId}</p>
+                      <p className="font-semibold text-gray-900">{customer.customerId}</p>
                     </div>
                   </div>
                   <div className="flex items-start space-x-3">
-                    <User className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                      <User className="w-4 h-4 text-green-600" />
+                    </div>
                     <div>
                       <p className="text-sm text-gray-500">Name</p>
-                      <p className="font-medium">{customer.name}</p>
+                      <p className="font-semibold text-gray-900">{customer.name}</p>
                     </div>
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div className="flex items-start space-x-3">
-                    <Phone className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                      <Phone className="w-4 h-4 text-purple-600" />
+                    </div>
                     <div>
                       <p className="text-sm text-gray-500">Phone</p>
-                      <p className="font-medium">{customer.phone}</p>
+                      <p className="font-semibold text-gray-900">{customer.phone}</p>
                     </div>
                   </div>
                   {customer.email && (
                     <div className="flex items-start space-x-3">
-                      <Mail className="w-5 h-5 text-gray-400 mt-0.5" />
+                      <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                        <Mail className="w-4 h-4 text-orange-600" />
+                      </div>
                       <div>
                         <p className="text-sm text-gray-500">Email</p>
-                        <p className="font-medium">{customer.email}</p>
+                        <p className="font-semibold text-gray-900">{customer.email}</p>
                       </div>
                     </div>
                   )}
                   {customer.address && (
                     <div className="flex items-start space-x-3">
-                      <MapPin className="w-5 h-5 text-gray-400 mt-0.5" />
+                      <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                        <MapPin className="w-4 h-4 text-red-600" />
+                      </div>
                       <div>
                         <p className="text-sm text-gray-500">Address</p>
-                        <p className="font-medium">{customer.address}</p>
+                        <p className="font-semibold text-gray-900">{customer.address}</p>
                       </div>
                     </div>
                   )}
@@ -366,27 +384,49 @@ export default function CustomerPortal() {
           </Card>
 
           {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>
-                Access your services and information
+          <Card className="border-0 shadow-xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 text-white overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
+            <CardHeader className="relative z-10">
+              <CardTitle className="text-2xl text-white flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                  <MessageSquare className="w-6 h-6" />
+                </div>
+                Need Help?
+              </CardTitle>
+              <CardDescription className="text-blue-100">
+                Submit a support ticket and get help from our team
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-4">
-                <Button variant="outline" className="h-24 flex flex-col items-center justify-center">
-                  <User className="w-6 h-6 mb-2" />
-                  <span>My Profile</span>
-                </Button>
+            <CardContent className="relative z-10">
+              <div className="flex justify-center mb-6">
                 <Button 
-                  variant="outline" 
-                  className="h-24 flex flex-col items-center justify-center"
+                  size="lg"
+                  className="h-16 px-8 bg-white text-blue-700 hover:bg-blue-50 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 font-semibold"
                   onClick={() => setIsSupportDialogOpen(true)}
                 >
-                  <Phone className="w-6 h-6 mb-2" />
-                  <span>Support</span>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Edit3 className="w-5 h-5 text-blue-700" />
+                    </div>
+                    <span className="text-lg">Write Support Ticket</span>
+                  </div>
                 </Button>
+              </div>
+              <div className="text-center">
+                <p className="text-blue-100 text-sm">
+                  Describe your issue in writing and our team will respond within 24 hours
+                </p>
+                <div className="flex items-center justify-center mt-4 space-x-6 text-xs text-blue-200">
+                  <div className="flex items-center space-x-1">
+                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span>Text Support</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                    <span>Quick Response</span>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -410,9 +450,14 @@ export default function CustomerPortal() {
       <Dialog open={isSupportDialogOpen} onOpenChange={setIsSupportDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Submit Support Ticket</DialogTitle>
+            <DialogTitle className="flex items-center gap-3 text-xl">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <MessageSquare className="w-5 h-5 text-blue-600" />
+              </div>
+              Create Support Ticket
+            </DialogTitle>
             <DialogDescription>
-              Describe your issue and attach any relevant documents
+              Describe your issue in detail and attach any relevant documents. Our support team will review and respond within 24 hours.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -454,7 +499,7 @@ export default function CustomerPortal() {
                 <div className="mt-4 space-y-2">
                   {uploadedFiles.map((file, index) => {
                     const getFileIcon = (fileType: string) => {
-                      if (fileType.startsWith('image/')) return <Image className="w-4 h-4 text-blue-500" />;
+                      if (fileType.startsWith('image/')) return <Image className="w-4 h-4 text-blue-500" alt="" />;
                       if (fileType === 'application/pdf') return <FileText className="w-4 h-4 text-red-500" />;
                       return <File className="w-4 h-4 text-gray-500" />;
                     };
@@ -504,14 +549,26 @@ export default function CustomerPortal() {
                 setSupportMessage("");
                 setUploadedFiles([]);
               }}
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
             <Button
               onClick={handleSubmitSupport}
               disabled={isSubmitting || !supportMessage.trim()}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
-              {isSubmitting ? "Submitting..." : "Submit Ticket"}
+              {isSubmitting ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>Submitting...</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Submit Ticket</span>
+                </div>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
