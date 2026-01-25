@@ -7,7 +7,7 @@ export class CustomerController {
   // Admin: Create a new customer
   static async createCustomer(req: Request, res: Response) {
     try {
-      const { name, phone, email, address } = req.body;
+      const { name, phone, email, address, customPrefix } = req.body;
       const adminId = (req as any).user?.id;
 
       if (!name || !phone) {
@@ -23,8 +23,8 @@ export class CustomerController {
         return res.status(400).json({ error: 'Customer with this phone number already exists' });
       }
 
-      // Generate customer ID
-      const customerId = await CustomerIdGeneratorService.generateCustomerId();
+      // Generate customer ID with custom prefix if provided
+      const customerId = await CustomerIdGeneratorService.generateCustomerId(customPrefix);
 
       // Create customer
       const customer = await prisma.customer.create({
@@ -338,6 +338,34 @@ export class CustomerController {
     } catch (error) {
       console.error('Error fetching customer profile:', error);
       res.status(500).json({ error: 'Failed to fetch profile' });
+    }
+  }
+
+  // Admin: Get available customer ID prefixes
+  static async getCustomerIdPrefixes(req: Request, res: Response) {
+    try {
+      const prefixes = await CustomerIdGeneratorService.getAvailablePrefixes();
+      res.json({ prefixes });
+    } catch (error) {
+      console.error('Error fetching prefixes:', error);
+      res.status(500).json({ error: 'Failed to fetch prefixes' });
+    }
+  }
+
+  // Admin: Add new customer ID prefix
+  static async addCustomerIdPrefix(req: Request, res: Response) {
+    try {
+      const { prefix } = req.body;
+
+      if (!prefix) {
+        return res.status(400).json({ error: 'Prefix is required' });
+      }
+
+      await CustomerIdGeneratorService.addCustomPrefix(prefix.toUpperCase());
+      res.json({ message: 'Prefix added successfully' });
+    } catch (error: any) {
+      console.error('Error adding prefix:', error);
+      res.status(400).json({ error: error.message || 'Failed to add prefix' });
     }
   }
 }

@@ -119,7 +119,7 @@ export function ProductManagement() {
       
       // Call backend directly
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
-      const response = await fetch(`${backendUrl}/api/v1/products`, {
+      const response = await fetch(`${backendUrl}/products`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -213,7 +213,7 @@ export function ProductManagement() {
 
       if (editingProduct) {
         // Update existing product
-        response = await fetch(`${backendUrl}/api/v1/products/${editingProduct.id}`, {
+        response = await fetch(`${backendUrl}/products/${editingProduct.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -223,7 +223,7 @@ export function ProductManagement() {
         })
       } else {
         // Create new product
-        response = await fetch(`${backendUrl}/api/v1/products`, {
+        response = await fetch(`${backendUrl}/products`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -291,7 +291,7 @@ export function ProductManagement() {
       }
 
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
-      const response = await fetch(`${backendUrl}/api/v1/products/${productId}`, {
+      const response = await fetch(`${backendUrl}/products/${productId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

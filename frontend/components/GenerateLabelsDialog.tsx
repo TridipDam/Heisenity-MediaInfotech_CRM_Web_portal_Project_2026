@@ -66,7 +66,7 @@ export function GenerateLabelsDialog({ product, isOpen, onClose }: GenerateLabel
 
       // Call the backend API to generate labels
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001'
-      const response = await fetch(`${backendUrl}/api/v1/products/${product.id}/generate-labels`, {
+      const response = await fetch(`${backendUrl}/products/${product.id}/generate-labels`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

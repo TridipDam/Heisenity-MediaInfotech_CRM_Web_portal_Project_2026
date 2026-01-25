@@ -76,13 +76,73 @@ export default function CustomerManagement() {
     phone: "",
     email: "",
     address: "",
+    customPrefix: "",
   });
+
+  const [prefixes, setPrefixes] = useState<string[]>([]);
+  const [showAddPrefix, setShowAddPrefix] = useState(false);
+  const [newPrefix, setNewPrefix] = useState("");
 
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
       fetchCustomers();
+      fetchPrefixes();
     }
   }, [pagination.page, searchTerm, session, status]);
+
+  const fetchPrefixes = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/customers/prefixes`,
+        {
+          headers: {
+            Authorization: `Bearer ${(session?.user as any)?.sessionToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to fetch prefixes");
+
+      const data = await response.json();
+      setPrefixes(data.prefixes);
+    } catch (error) {
+      console.error("Error fetching prefixes:", error);
+    }
+  };
+
+  const handleAddPrefix = async () => {
+    if (!newPrefix.trim()) {
+      toast.error("Please enter a prefix");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/customers/prefixes`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${(session?.user as any)?.sessionToken}`,
+          },
+          body: JSON.stringify({ prefix: newPrefix.toUpperCase() }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to add prefix");
+      }
+
+      toast.success("Prefix added successfully");
+      setNewPrefix("");
+      setShowAddPrefix(false);
+      fetchPrefixes();
+    } catch (error: any) {
+      console.error("Error adding prefix:", error);
+      toast.error(error.message || "Failed to add prefix");
+    }
+  };
 
   const fetchCustomers = async () => {
     // Don't fetch if not authenticated
@@ -230,6 +290,7 @@ export default function CustomerManagement() {
       phone: "",
       email: "",
       address: "",
+      customPrefix: "",
     });
     setSelectedCustomer(null);
   };
@@ -517,10 +578,40 @@ export default function CustomerManagement() {
           <DialogHeader>
             <DialogTitle>Create New Customer</DialogTitle>
             <DialogDescription>
-              Add a new customer to the system. Customer ID will be auto-generated.
+              Add a new customer to the system. Choose a prefix for the customer ID.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div>
+              <Label htmlFor="customPrefix">Customer ID Prefix</Label>
+              <div className="flex gap-2">
+                <select
+                  id="customPrefix"
+                  value={formData.customPrefix}
+                  onChange={(e) => setFormData({ ...formData, customPrefix: e.target.value })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">Select prefix (default: CUS)</option>
+                  {prefixes.map((prefix) => (
+                    <option key={prefix} value={prefix}>
+                      {prefix} (e.g., {prefix}0001)
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAddPrefix(true)}
+                  title="Add new prefix"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Customer ID will be generated as: {formData.customPrefix || 'CUS'}0001, {formData.customPrefix || 'CUS'}0002, etc.
+              </p>
+            </div>
             <div>
               <Label htmlFor="name">Name *</Label>
               <Input
@@ -722,6 +813,43 @@ export default function CustomerManagement() {
           setSelectedCustomer(null);
         }}
       />
+
+      {/* Add Prefix Dialog */}
+      <Dialog open={showAddPrefix} onOpenChange={setShowAddPrefix}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Customer ID Prefix</DialogTitle>
+            <DialogDescription>
+              Create a new prefix for customer IDs. Use 2-5 uppercase letters only.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="newPrefix">Prefix *</Label>
+              <Input
+                id="newPrefix"
+                value={newPrefix}
+                onChange={(e) => setNewPrefix(e.target.value.toUpperCase())}
+                placeholder="e.g., CHM, VIP, ENT"
+                maxLength={5}
+                pattern="[A-Z]{2,5}"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Example: CHM will generate CHM0001, CHM0002, etc.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowAddPrefix(false);
+              setNewPrefix("");
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddPrefix}>Add Prefix</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

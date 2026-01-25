@@ -15,6 +15,8 @@ router.post('/logout', authenticateCustomer, CustomerController.customerLogout);
 
 // Admin protected routes
 router.get('/export/excel', authenticateToken, exportCustomersToExcel);
+router.get('/prefixes', authenticateToken, CustomerController.getCustomerIdPrefixes);
+router.post('/prefixes', authenticateToken, CustomerController.addCustomerIdPrefix);
 router.post('/', authenticateToken, CustomerController.createCustomer);
 router.get('/', authenticateToken, CustomerController.getAllCustomers);
 router.get('/:id', authenticateToken, CustomerController.getCustomer);

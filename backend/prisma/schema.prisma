@@ -687,6 +687,17 @@ model Customer {
   @@map("customers")
 }
 
+model CustomerIdConfig {
+  id           String   @id @default(cuid())
+  prefix       String   @unique
+  nextSequence Int      @default(1)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("customer_id_configs")
+}
+
 model CustomerSession {
   id           String   @id @default(cuid())
   sessionToken String   @unique
