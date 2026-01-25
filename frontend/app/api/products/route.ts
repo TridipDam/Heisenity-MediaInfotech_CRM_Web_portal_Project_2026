@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    const response = await fetch(`${BACKEND_URL}/api/products`, {
+    const response = await fetch(`${BACKEND_URL}/api/v1/products`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/products`, {
+    const response = await fetch(`${BACKEND_URL}/api/v1/products`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

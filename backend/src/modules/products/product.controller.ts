@@ -15,8 +15,52 @@ export const createProduct = async (req: Request, res: Response) => {
       });
     }
 
-    // Generate SKU if not provided
-    const finalSku = sku || `PRD-${Date.now()}`;
+    let finalSku = sku;
+    
+    // Generate unique SKU if not provided
+    if (!finalSku) {
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      do {
+        // Use a more unique timestamp-based approach
+        const timestamp = Date.now();
+        const randomSuffix = Math.random().toString(36).substr(2, 8).toUpperCase();
+        finalSku = `PRD-${timestamp}-${randomSuffix}`;
+        
+        // Check if this SKU already exists
+        const existingProduct = await prisma.product.findUnique({
+          where: { sku: finalSku }
+        });
+        
+        if (!existingProduct) {
+          break; // SKU is unique, we can use it
+        }
+        
+        attempts++;
+        // Add a small delay to ensure different timestamps
+        await new Promise(resolve => setTimeout(resolve, 10));
+        
+      } while (attempts < maxAttempts);
+      
+      if (attempts >= maxAttempts) {
+        return res.status(500).json({
+          error: 'Failed to generate unique SKU after multiple attempts'
+        });
+      }
+    } else {
+      // Check if provided SKU already exists
+      const existingProduct = await prisma.product.findUnique({
+        where: { sku: finalSku }
+      });
+
+      if (existingProduct) {
+        return res.status(409).json({
+          error: 'Product with this SKU already exists',
+          message: `SKU "${finalSku}" is already in use`
+        });
+      }
+    }
 
     // Create the product
     const product = await prisma.product.create({
@@ -30,9 +74,23 @@ export const createProduct = async (req: Request, res: Response) => {
       }
     });
 
-    res.status(201).json({
+    // Convert BigInt to string for JSON serialization
+    const serializedProduct = {
+      id: product.id.toString(),
+      sku: product.sku,
+      productName: product.productName,
+      description: product.description,
+      boxQty: product.boxQty,
+      totalUnits: product.totalUnits,
+      reorderThreshold: product.reorderThreshold,
+      isActive: product.isActive,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt
+    };
+
+    return res.status(201).json({
       success: true,
-      data: product,
+      data: serializedProduct,
       message: 'Product created successfully'
     });
 
@@ -43,11 +101,11 @@ export const createProduct = async (req: Request, res: Response) => {
     if (error.code === 'P2002') {
       return res.status(409).json({
         error: 'Product with this SKU already exists',
-        message: error.message
+        message: 'Please try again or provide a different SKU'
       });
     }
 
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to create product',
       message: error.message
     });
@@ -65,15 +123,224 @@ export const getProducts = async (req: Request, res: Response) => {
       }
     });
 
-    res.json({
+    // Convert BigInt to string for JSON serialization
+    const serializedProducts = products.map(product => ({
+      id: product.id.toString(),
+      sku: product.sku,
+      productName: product.productName,
+      description: product.description,
+      boxQty: product.boxQty,
+      totalUnits: product.totalUnits,
+      reorderThreshold: product.reorderThreshold,
+      isActive: product.isActive,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt
+    }));
+
+    return res.json({
       success: true,
-      data: products
+      data: serializedProducts
     });
 
   } catch (error: any) {
     console.error('Error fetching products:', error);
-    res.status(500).json({
+    return res.status(500).json({
       error: 'Failed to fetch products',
+      message: error.message
+    });
+  }
+};
+
+export const getProduct = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const product = await prisma.product.findUnique({
+      where: {
+        id: BigInt(id)
+      },
+      include: {
+        barcodes: true,
+        transactions: {
+          orderBy: {
+            id: 'desc'
+          },
+          take: 10
+        },
+        allocations: {
+          orderBy: {
+            id: 'desc'
+          },
+          take: 10
+        }
+      }
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        error: 'Product not found'
+      });
+    }
+
+    // Convert BigInt to string for JSON serialization
+    const serializedProduct = {
+      id: product.id.toString(),
+      sku: product.sku,
+      productName: product.productName,
+      description: product.description,
+      boxQty: product.boxQty,
+      totalUnits: product.totalUnits,
+      reorderThreshold: product.reorderThreshold,
+      isActive: product.isActive,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+      barcodes: product.barcodes.map((barcode: any) => ({
+        id: barcode.id.toString(),
+        barcodeValue: barcode.barcodeValue,
+        serialNumber: barcode.serialNumber,
+        productId: barcode.productId.toString(),
+        createdAt: barcode.createdAt,
+        updatedAt: barcode.updatedAt
+      })),
+      transactions: product.transactions.map((transaction: any) => ({
+        id: transaction.id.toString(),
+        productId: transaction.productId.toString(),
+        type: transaction.type,
+        quantity: transaction.quantity,
+        createdAt: transaction.createdAt,
+        updatedAt: transaction.updatedAt
+      })),
+      allocations: product.allocations.map((allocation: any) => ({
+        id: allocation.id.toString(),
+        productId: allocation.productId.toString(),
+        employeeId: allocation.employeeId,
+        quantity: allocation.quantity,
+        createdAt: allocation.createdAt,
+        updatedAt: allocation.updatedAt
+      }))
+    };
+
+    return res.json({
+      success: true,
+      data: serializedProduct
+    });
+
+  } catch (error: any) {
+    console.error('Error fetching product:', error);
+    return res.status(500).json({
+      error: 'Failed to fetch product',
+      message: error.message
+    });
+  }
+};
+
+export const updateProduct = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { sku, productName, description, boxQty, totalUnits, reorderThreshold } = req.body;
+
+    // Check if product exists
+    const existingProduct = await prisma.product.findUnique({
+      where: {
+        id: BigInt(id)
+      }
+    });
+
+    if (!existingProduct) {
+      return res.status(404).json({
+        error: 'Product not found'
+      });
+    }
+
+    // Update the product
+    const product = await prisma.product.update({
+      where: {
+        id: BigInt(id)
+      },
+      data: {
+        ...(sku && { sku }),
+        ...(productName && { productName }),
+        ...(description !== undefined && { description }),
+        ...(boxQty !== undefined && { boxQty: parseInt(boxQty) }),
+        ...(totalUnits !== undefined && { totalUnits: parseInt(totalUnits) }),
+        ...(reorderThreshold !== undefined && { reorderThreshold: parseInt(reorderThreshold) })
+      }
+    });
+
+    // Convert BigInt to string for JSON serialization
+    const serializedProduct = {
+      id: product.id.toString(),
+      sku: product.sku,
+      productName: product.productName,
+      description: product.description,
+      boxQty: product.boxQty,
+      totalUnits: product.totalUnits,
+      reorderThreshold: product.reorderThreshold,
+      isActive: product.isActive,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt
+    };
+
+    return res.json({
+      success: true,
+      data: serializedProduct,
+      message: 'Product updated successfully'
+    });
+
+  } catch (error: any) {
+    console.error('Error updating product:', error);
+    
+    // Handle unique constraint violations
+    if (error.code === 'P2002') {
+      return res.status(409).json({
+        error: 'Product with this SKU already exists',
+        message: error.message
+      });
+    }
+
+    return res.status(500).json({
+      error: 'Failed to update product',
+      message: error.message
+    });
+  }
+};
+
+export const deleteProduct = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Check if product exists
+    const existingProduct = await prisma.product.findUnique({
+      where: {
+        id: BigInt(id)
+      }
+    });
+
+    if (!existingProduct) {
+      return res.status(404).json({
+        error: 'Product not found'
+      });
+    }
+
+    // Soft delete by setting isActive to false
+    const product = await prisma.product.update({
+      where: {
+        id: BigInt(id)
+      },
+      data: {
+        isActive: false
+      }
+    });
+
+    return res.json({
+      success: true,
+      message: 'Product deleted successfully'
+    });
+
+  } catch (error: any) {
+    console.error('Error deleting product:', error);
+    return res.status(500).json({
+      error: 'Failed to delete product',
       message: error.message
     });
   }
@@ -82,7 +349,7 @@ export const getProducts = async (req: Request, res: Response) => {
 export const generateLabels = async (req: Request, res: Response) => {
   try {
     const { productId } = req.params;
-    const { sku, name, boxQty, count, prefix } = req.body;
+    const { count, prefix } = req.body;
 
     if (!productId || !count) {
       return res.status(400).json({
@@ -90,9 +357,28 @@ export const generateLabels = async (req: Request, res: Response) => {
       });
     }
 
+    // Validate count
+    const labelCount = parseInt(count);
+    if (isNaN(labelCount) || labelCount < 1 || labelCount > 100) {
+      return res.status(400).json({
+        error: 'Count must be a number between 1 and 100'
+      });
+    }
+
+    // Validate product exists
+    const product = await prisma.product.findUnique({
+      where: { id: BigInt(productId) }
+    });
+
+    if (!product) {
+      return res.status(404).json({
+        error: 'Product not found'
+      });
+    }
+
     const result = await generateLabelsForProduct({
       productId,
-      count: parseInt(count),
+      count: labelCount,
       prefix: prefix || 'BX'
     });
 
@@ -107,15 +393,30 @@ export const generateLabels = async (req: Request, res: Response) => {
     fileStream.pipe(res);
 
     fileStream.on('end', () => {
-      // Optionally delete the file after sending
-      // fs.unlink(pdfPath).catch(console.error);
+      // Clean up the file after sending (optional)
+      setTimeout(() => {
+        fs.unlink(pdfPath).catch(console.error);
+      }, 5000); // Delete after 5 seconds
+    });
+
+    fileStream.on('error', (error) => {
+      console.error('Error streaming PDF:', error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: 'Failed to stream PDF file',
+          message: error.message
+        });
+      }
     });
 
   } catch (error: any) {
     console.error('Error generating labels:', error);
-    res.status(500).json({
-      error: 'Failed to generate labels',
-      message: error.message
-    });
+    
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Failed to generate labels',
+        message: error.message
+      });
+    }
   }
 };

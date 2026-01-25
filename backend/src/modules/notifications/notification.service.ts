@@ -320,7 +320,7 @@ export class NotificationService {
         where: { ticketId: notificationData.ticketId },
         data: {
           assigneeId: assigneeEmployee.id,
-          status: 'IN_PROGRESS'
+          status: 'OPEN'
         },
         include: {
           assignee: {

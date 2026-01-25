@@ -14,8 +14,6 @@ import { AddAttendanceRecord } from "@/components/AddAttendanceRecord"
 import { showToast } from "@/lib/toast-utils"
 
 import {
-  ChevronLeft,
-  ChevronRight,
   Search,
   Filter,
   Download,
@@ -36,10 +34,7 @@ import {
 } from "lucide-react"
 import { getAttendanceRecords, getAllEmployees, exportAttendanceToExcel, ExportParams, AttendanceRecord, Employee } from "@/lib/server-api"
 
-interface DateRange {
-  from: Date | null
-  to: null | Date
-}
+
 
 interface ExtendedAttendanceRecord extends AttendanceRecord {
   hasAttendance: boolean
@@ -195,8 +190,7 @@ export function AttendanceManagementPage() {
   })
   const [filters, setFilters] = React.useState({
     search: '',
-    status: '',
-    dateRange: { from: new Date(), to: null } as DateRange
+    status: ''
   })
   const [exportLoading, setExportLoading] = React.useState<'excel' | 'pdf' | null>(null)
 
@@ -233,26 +227,8 @@ export function AttendanceManagementPage() {
         limit: pagination.limit
       }
 
-      // Handle date range filtering
-      if (filters.dateRange.from) {
-        params.dateFrom = filters.dateRange.from.toISOString().split('T')[0]
-      }
-
-      if (filters.dateRange.to) {
-        params.dateTo = filters.dateRange.to.toISOString().split('T')[0]
-      }
-
-      // If we have a single date (from but no to), use it as both from and to
-      if (filters.dateRange.from && !filters.dateRange.to) {
-        const singleDate = filters.dateRange.from.toISOString().split('T')[0]
-        params.dateFrom = singleDate
-        params.dateTo = singleDate
-      }
-
-      // If no date range is selected at all, default to today
-      if (!filters.dateRange.from && !filters.dateRange.to) {
-        params.date = new Date().toISOString().split('T')[0]
-      }
+      // Use today's date for filtering
+      params.date = new Date().toISOString().split('T')[0]
 
       if (filters.status) {
         params.status = filters.status
@@ -413,7 +389,7 @@ export function AttendanceManagementPage() {
   // Reset pagination when filters change (except page)
   React.useEffect(() => {
     setPagination(prev => ({ ...prev, page: 1 }))
-  }, [filters.search, filters.status, filters.dateRange.from, filters.dateRange.to])
+  }, [filters.search, filters.status])
 
   const handleRefresh = () => {
     fetchAttendanceData()
@@ -439,23 +415,8 @@ export function AttendanceManagementPage() {
 
       // Only use custom date range if no quick range is specified
       if (!quickRange) {
-        if (filters.dateRange.from) {
-          exportParams.dateFrom = filters.dateRange.from.toISOString().split('T')[0]
-        }
-
-        if (filters.dateRange.to) {
-          exportParams.dateTo = filters.dateRange.to.toISOString().split('T')[0]
-        }
-
-        if (filters.dateRange.from && !filters.dateRange.to) {
-          const singleDate = filters.dateRange.from.toISOString().split('T')[0]
-          exportParams.dateFrom = singleDate
-          exportParams.dateTo = singleDate
-        }
-
-        if (!filters.dateRange.from && !filters.dateRange.to) {
-          exportParams.date = new Date().toISOString().split('T')[0]
-        }
+        // Use today's date
+        exportParams.date = new Date().toISOString().split('T')[0]
       }
 
       if (filters.status) {
@@ -472,35 +433,7 @@ export function AttendanceManagementPage() {
     }
   }
 
-  const handleDateChange = (direction: 'prev' | 'next') => {
-    let targetDate: Date
 
-    if (filters.dateRange.from && !filters.dateRange.to) {
-      targetDate = new Date(filters.dateRange.from)
-    } else {
-      targetDate = new Date()
-    }
-
-    if (direction === 'prev') {
-      targetDate.setDate(targetDate.getDate() - 1)
-    } else {
-      targetDate.setDate(targetDate.getDate() + 1)
-    }
-
-    setFilters(prev => ({
-      ...prev,
-      dateRange: { from: targetDate, to: null }
-    }))
-
-    setCurrentDate(targetDate.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }))
-
-    setPagination(prev => ({ ...prev, page: 1 }))
-  }
 
   // Edit attendance functions
   const handleEditAttendance = (record: AttendanceSessionRow) => {
@@ -696,33 +629,9 @@ export function AttendanceManagementPage() {
 
             <Separator className="my-4" />
 
-            {/* Date Navigation */}
+            {/* Status Indicators */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-1 border border-gray-200">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0 hover:bg-white"
-                    onClick={() => handleDateChange('prev')}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <div className="px-3 py-1">
-                    <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                      {currentDate}
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0 hover:bg-white"
-                    onClick={() => handleDateChange('next')}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-
                 <Badge variant="outline" className="text-gray-500 font-normal">
                   <Clock className="h-3 w-3 mr-1" />
                   Live
@@ -912,8 +821,7 @@ export function AttendanceManagementPage() {
                         const today = new Date()
                         setFilters({
                           search: '',
-                          status: '',
-                          dateRange: { from: today, to: null }
+                          status: ''
                         })
                         setCurrentDate(today.toLocaleDateString('en-US', {
                           weekday: 'long',

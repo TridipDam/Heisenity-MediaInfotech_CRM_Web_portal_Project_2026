@@ -499,7 +499,7 @@ export default function CustomerPortal() {
                 <div className="mt-4 space-y-2">
                   {uploadedFiles.map((file, index) => {
                     const getFileIcon = (fileType: string) => {
-                      if (fileType.startsWith('image/')) return <Image className="w-4 h-4 text-blue-500" alt="" />;
+                      if (fileType.startsWith('image/')) return <Image className="w-4 h-4 text-blue-500" />;
                       if (fileType === 'application/pdf') return <FileText className="w-4 h-4 text-red-500" />;
                       return <File className="w-4 h-4 text-gray-500" />;
                     };

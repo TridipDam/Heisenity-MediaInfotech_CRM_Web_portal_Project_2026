@@ -212,7 +212,7 @@ export function StaffTicketList({ employeeId, refreshTrigger }: StaffTicketListP
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-foreground truncate">{ticket.ticketId}</p>
-                      <p className="text-sm text-muted-foreground">{ticket.category?.name || 'Unknown Category'}</p>
+                      <p className="text-sm text-muted-foreground">{ticket.category?.name || 'Unknown Problem'}</p>
                       <p 
                         className="text-xs text-muted-foreground safe-text-clamp line-clamp-1 max-w-[200px] cursor-help" 
                         title={ticket.description}

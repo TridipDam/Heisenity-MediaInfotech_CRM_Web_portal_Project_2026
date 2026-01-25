@@ -653,7 +653,7 @@ export function AssignTaskPage({ onBack, preSelectedEmployeeId, onTaskAssigned, 
                                     {ticket.priority}
                                   </span>
                                   <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
-                                    {ticket.category?.name || 'Unknown Category'}
+                                    {ticket.category?.name || 'Unknown Problem'}
                                   </span>
                                 </div>
                               </div>

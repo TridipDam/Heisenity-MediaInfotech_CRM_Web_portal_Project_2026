@@ -1,5 +1,5 @@
 import * as bwipjs from 'bwip-js';
-import * as PDFDocument from 'pdfkit';
+import PDFDocument from 'pdfkit';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { prisma } from '../lib/prisma';
@@ -41,7 +41,7 @@ async function createPdfFromLabels(
   await fs.ensureDir(OUTPUT_DIR);
   const pdfPath = path.join(OUTPUT_DIR, fileName);
 
-  const doc = new (PDFDocument as any)({ size: 'A4', margin: 36 });
+  const doc = new PDFDocument({ size: 'A4', margin: 36 });
   doc.pipe(fs.createWriteStream(pdfPath));
 
   const columns = 3;

@@ -9,7 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
-import AddNewStockItem from "./AddNewStockItem"
 import { 
   Search, 
   Filter, 
@@ -231,7 +230,6 @@ export function StockPage() {
   const [searchTerm, setSearchTerm] = React.useState("")
   const [selectedCategory, setSelectedCategory] = React.useState("all")
   const [selectedStatus, setSelectedStatus] = React.useState("all")
-  const [isAddItemOpen, setIsAddItemOpen] = React.useState(false)
 
   // Calculate summary statistics
   const totalItems = stockData.length
@@ -262,6 +260,14 @@ export function StockPage() {
               <p className="text-gray-600">Monitor and manage inventory levels and supplies</p>
             </div>
             <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                onClick={() => window.location.href = '/products'}
+              >
+                <Package className="h-4 w-4 mr-2" />
+                Products
+              </Button>
               <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
                 <Download className="h-4 w-4 mr-2" />
                 Export Inventory
@@ -270,20 +276,6 @@ export function StockPage() {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Sync Stock
               </Button>
-              <Dialog open={isAddItemOpen} onOpenChange={setIsAddItemOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-blue-600 hover:bg-blue-700 shadow-sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Item
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Add New Stock Item</DialogTitle>
-                  </DialogHeader>
-                  <AddNewStockItem onSuccess={() => setIsAddItemOpen(false)} />
-                </DialogContent>
-              </Dialog>
             </div>
           </div>
           

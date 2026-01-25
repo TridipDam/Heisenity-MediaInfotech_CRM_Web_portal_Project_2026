@@ -49,7 +49,8 @@ const handleInviteeCreated = async (payload: any) => {
       organizerId: await findOrganizerId(event.event_memberships?.[0]?.user_email),
       meetingLink: event.location?.join_url || payload.event.location?.join_url,
       agenda: `Calendly Meeting Details:\n- Event: ${event.name}\n- Duration: ${event.duration} minutes`,
-      notes: `Calendly Data:\n- Event UUID: ${event.uuid}\n- Invitee UUID: ${invitee.uuid}\n- Scheduled: ${invitee.created_at}`
+      notes: `Calendly Data:\n- Event UUID: ${event.uuid}\n- Invitee UUID: ${invitee.uuid}\n- Scheduled: ${invitee.created_at}`,
+      customerId: undefined as string | undefined
     };
 
     // Find customer if exists
@@ -213,7 +214,8 @@ export const getCalendlyMeetingDetails = async (req: Request, res: Response) => 
       include: {
         meeting: {
           include: {
-            organizer: true,
+            organizerAdmin: true,
+            organizerEmployee: true,
             customer: true,
             attendees: {
               include: {

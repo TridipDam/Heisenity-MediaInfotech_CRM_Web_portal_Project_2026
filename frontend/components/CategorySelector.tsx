@@ -45,7 +45,7 @@ export function CategorySelector({ value, onValueChange, placeholder = "Select c
       const response = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/ticket-categories`)
       
       if (!response.ok) {
-        throw new Error('Failed to fetch categories')
+        throw new Error('Failed to fetch problem types')
       }
 
       const data = await response.json()
@@ -53,8 +53,8 @@ export function CategorySelector({ value, onValueChange, placeholder = "Select c
         setCategories(data.data)
       }
     } catch (error) {
-      console.error('Error fetching categories:', error)
-      showToast.error('Failed to load categories')
+      console.error('Error fetching problem types:', error)
+      showToast.error('Failed to load problem types')
     } finally {
       setLoading(false)
     }
@@ -66,7 +66,7 @@ export function CategorySelector({ value, onValueChange, placeholder = "Select c
 
   const handleCreateCategory = async () => {
     if (!newCategory.name.trim()) {
-      showToast.error('Category name is required')
+      showToast.error('Problem type name is required')
       return
     }
 
@@ -85,12 +85,12 @@ export function CategorySelector({ value, onValueChange, placeholder = "Select c
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to create category')
+        throw new Error(errorData.message || 'Failed to create problem type')
       }
 
       const data = await response.json()
       if (data.success) {
-        showToast.success('Category created successfully')
+        showToast.success('Problem type created successfully')
         setCategories(prev => [...prev, data.data])
         setNewCategory({ name: "", description: "" })
         setIsAddDialogOpen(false)
@@ -99,8 +99,8 @@ export function CategorySelector({ value, onValueChange, placeholder = "Select c
         onValueChange(data.data.id)
       }
     } catch (error) {
-      console.error('Error creating category:', error)
-      showToast.error(error instanceof Error ? error.message : 'Failed to create category')
+      console.error('Error creating problem type:', error)
+      showToast.error(error instanceof Error ? error.message : 'Failed to create problem type')
     } finally {
       setCreating(false)
     }
@@ -117,7 +117,7 @@ export function CategorySelector({ value, onValueChange, placeholder = "Select c
         <div className="flex-1">
           <Select value={value} onValueChange={onValueChange} disabled={disabled || loading}>
             <SelectTrigger>
-              <SelectValue placeholder={loading ? "Loading categories..." : placeholder} />
+              <SelectValue placeholder={loading ? "Loading problem types..." : placeholder} />
             </SelectTrigger>
             <SelectContent>
               {categories.map((category) => (
@@ -143,18 +143,18 @@ export function CategorySelector({ value, onValueChange, placeholder = "Select c
               variant="outline" 
               size="icon"
               disabled={disabled}
-              title="Add new category"
+              title="Add new problem type"
             >
               <Plus className="h-4 w-4" />
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Add New Category</DialogTitle>
+              <DialogTitle>Add New Problem Type</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="category-name">Category Name *</Label>
+                <Label htmlFor="category-name">Problem Type Name *</Label>
                 <Input
                   id="category-name"
                   placeholder="e.g., MOBILE_ISSUES"
@@ -167,7 +167,7 @@ export function CategorySelector({ value, onValueChange, placeholder = "Select c
                 <Label htmlFor="category-description">Description (Optional)</Label>
                 <Textarea
                   id="category-description"
-                  placeholder="Brief description of this category"
+                  placeholder="Brief description of this problem type"
                   value={newCategory.description}
                   onChange={(e) => setNewCategory(prev => ({ ...prev, description: e.target.value }))}
                   disabled={creating}
@@ -190,7 +190,7 @@ export function CategorySelector({ value, onValueChange, placeholder = "Select c
                 disabled={creating || !newCategory.name.trim()}
               >
                 {creating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Category
+                Create Problem Type
               </Button>
             </div>
           </DialogContent>
