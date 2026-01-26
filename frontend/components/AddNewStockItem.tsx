@@ -58,7 +58,7 @@ export default function AddStockItem({ onSuccess }: AddNewStockItemProps): React
   const { toast } = useToast()
 
   const onChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ): void => {
     const { name, value } = e.target
     setForm((prev) => ({ ...prev, [name]: value }))

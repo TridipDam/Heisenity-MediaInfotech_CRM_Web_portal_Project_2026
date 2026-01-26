@@ -345,7 +345,11 @@ export default function MeetingDetailsDialog({
                       <User className="h-4 w-4 text-gray-500" />
                       <div>
                         <p className="font-medium">{getOrganizer(meeting)?.name}</p>
-                        <p className="text-sm text-gray-600">{getOrganizer(meeting)?.adminId || getOrganizer(meeting)?.employeeId}</p>
+                        <p className="text-sm text-gray-600">
+                          {getOrganizer(meeting) && 'adminId' in getOrganizer(meeting)! 
+                            ? (getOrganizer(meeting) as any).adminId 
+                            : (getOrganizer(meeting) as any).employeeId}
+                        </p>
                         <p className="text-sm text-gray-600">{getOrganizer(meeting)?.email}</p>
                       </div>
                     </div>

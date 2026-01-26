@@ -270,6 +270,7 @@ export default function CustomerManagement() {
       phone: customer.phone,
       email: customer.email || "",
       address: customer.address || "",
+      customPrefix: "",
     });
     setIsEditDialogOpen(true);
   };

@@ -32,6 +32,7 @@ interface Employee {
   name: string;
   employeeId: string;
   email: string;
+  role?: string;
 }
 
 interface Customer {
