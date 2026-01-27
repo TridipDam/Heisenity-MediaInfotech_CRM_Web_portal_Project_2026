@@ -193,6 +193,12 @@ export function StockPage() {
   // Handle barcode scan
   const handleBarcodeScan = React.useCallback((barcodeValue: string) => {
     console.log('Barcode scanned:', barcodeValue)
+    // The inventory change will be handled by the onInventoryChange callback
+  }, [])
+
+  // Handle inventory change (when barcode is scanned and transaction is created)
+  const handleInventoryChange = React.useCallback(() => {
+    console.log('Inventory changed, refreshing transactions...')
     // Refresh transactions to show the new one - increased delay to ensure transaction is processed
     setTimeout(() => {
       fetchTransactions()
@@ -260,7 +266,10 @@ export function StockPage() {
               <p className="text-gray-600">Track all barcode scanning and inventory movements</p>
             </div>
             <div className="flex items-center gap-3">
-              <BarcodeScanner onScan={handleBarcodeScan} />
+              <BarcodeScanner 
+                onScan={handleBarcodeScan} 
+                onInventoryChange={handleInventoryChange}
+              />
               <Button 
                 variant="outline" 
                 className="border-blue-300 text-blue-600 hover:bg-blue-50"
@@ -455,7 +464,7 @@ export function StockPage() {
                 <TableHead className="w-[300px] py-4 px-6 font-semibold text-gray-700">Product Details</TableHead>
                 <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Transaction</TableHead>
                 <TableHead className="w-[100px] py-4 px-6 font-semibold text-gray-700">Quantity</TableHead>
-                <TableHead className="w-[150px] py-4 px-6 font-semibold text-gray-700">Barcode</TableHead>
+                <TableHead className="w-[150px] py-4 px-6 font-semibold text-gray-700">Serial No.</TableHead>
                 <TableHead className="w-[180px] py-4 px-6 font-semibold text-gray-700">Employee</TableHead>
                 <TableHead className="w-[150px] py-4 px-6 font-semibold text-gray-700">Date & Time</TableHead>
                 <TableHead className="py-4 px-6 font-semibold text-gray-700">Remarks</TableHead>
@@ -528,10 +537,6 @@ export function StockPage() {
                     <TableCell className="py-4 px-6">
                       <div className="space-y-1">
                         <p className="font-mono text-sm text-gray-900">{transaction.barcode.barcodeValue}</p>
-                        <p className="text-xs text-gray-500">Serial: {transaction.barcode.serialNumber}</p>
-                        <Badge variant="outline" className="text-xs">
-                          {transaction.barcode.status}
-                        </Badge>
                       </div>
                     </TableCell>
                     <TableCell className="py-4 px-6">

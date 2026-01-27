@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
+import { ReturnForm } from '@/components/ReturnForm';
 import {
   Sheet,
   SheetContent,
@@ -12,35 +13,33 @@ import {
 } from '@/components/ui/sheet';
 import { QrCode, Package, AlertCircle, Camera } from 'lucide-react';
 
+/* ...keep your interfaces and constants unchanged... */
+
 interface BarcodeScannerProps {
   onScan?: (data: string) => void;
+  onInventoryChange?: () => void;
+  onScanResult?: (result: any) => void;
 }
 
 interface ProductResult {
+  id: string;
+  serialNumber: string;
+  status: string;
   product: {
     id: string;
-    sku: string;
     productName: string;
+    sku: string;
     boxQty: number;
-    description?: string;
-    totalUnits?: number;
-    reorderThreshold?: number;
-    isActive?: boolean;
   };
-  serialNumber: string;
-  barcodeValue: string;
-  status: string;
 }
 
 const SCANNER_ID = 'quagga-scanner';
+const VALID_BARCODE_REGEX = /^BX\d{6}$/;
+const CONSENSUS_REQUIRED = 3;
+const CONSENSUS_WINDOW_MS = 1500;
 
-// --- Validation & consensus constants (tune these if needed)
-const VALID_BARCODE_REGEX = /^BX\d{6}$/; // accepts BX followed by 6 digits (BX000123)
-const CONSENSUS_REQUIRED = 3; // number of identical detections required
-const CONSENSUS_WINDOW_MS = 1500; // time window (ms) within which CONSENSUS_REQUIRED must occur
-
-export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
-  const { data: session } = useSession()
+export default function BarcodeScanner({ onScan, onInventoryChange, onScanResult }: BarcodeScannerProps) {
+  const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [result, setResult] = useState<ProductResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,14 +47,22 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
   const [showScanWarning, setShowScanWarning] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const quaggaRef = useRef<typeof import('@ericblade/quagga2').default | null>(null);
+  const [duplicateWarning, setDuplicateWarning] = useState<{ show: boolean; remaining: number; message?: string }>({
+    show: false,
+    remaining: 0,
+    message: undefined
+  });
+  const [showReturnForm, setShowReturnForm] = useState(false);
+
+  const quaggaRef = useRef<any | null>(null);
   const initializedRef = useRef(false);
   const processingRef = useRef(false);
   const lastScanRef = useRef(Date.now());
   const mountedRef = useRef(true);
 
-  // Map for consensus: code -> { count, last }
   const recentDetections = useRef(new Map<string, { count: number; last: number }>());
+  const warningTimerRef = useRef<number | null>(null);
+  const duplicateTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -68,7 +75,7 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
     if (!isOpen || initializedRef.current) return;
 
     let cancelled = false;
-    let warningTimer: NodeJS.Timeout;
+    let warningTimer: number | null = null;
 
     const startScanner = async () => {
       if (!mountedRef.current) return;
@@ -76,7 +83,6 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
       setIsLoading(true);
       setCameraError(null);
 
-      // Wait for Sheet animation + DOM layout
       await new Promise(res => setTimeout(res, 350));
       if (cancelled || !mountedRef.current) return;
 
@@ -86,7 +92,6 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
         const Quagga = (await import('@ericblade/quagga2')).default;
         quaggaRef.current = Quagga;
 
-        // Check if camera is available
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           throw new Error('Camera not supported on this device');
         }
@@ -132,11 +137,7 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
 
               setTimeout(() => {
                 if (!mountedRef.current) return;
-
-                const video = document.querySelector(
-                  `#${SCANNER_ID} video`
-                ) as HTMLVideoElement | null;
-
+                const video = document.querySelector(`#${SCANNER_ID} video`) as HTMLVideoElement | null;
                 if (video) {
                   video.setAttribute('playsinline', 'true');
                   video.setAttribute('muted', 'true');
@@ -144,10 +145,7 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
                   video.autoplay = true;
                   video.style.width = '100%';
                   video.style.height = '100%';
-                  // preserve quiet zones — avoid cropping
                   video.style.objectFit = 'contain';
-
-                  // Force video to play on iOS
                   video.play().catch(console.warn);
                 }
               }, 200);
@@ -163,30 +161,17 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           if (processingRef.current || cancelled || !mountedRef.current) return;
 
           const code = (data as { codeResult?: { code?: string } })?.codeResult?.code;
-          if (!code || code.length < 3) return; // Ignore very short codes
+          if (!code || code.length < 3) return;
 
-          console.log('🔍 SCANNER DETECTED (raw):', {
-            rawCode: code,
-            codeLength: code.length,
-            codeType: typeof code,
-            encodedCode: encodeURIComponent(code)
-          });
-
-          // --- LOCAL VALIDATION: reject anything that doesn't match your BX pattern
           if (!VALID_BARCODE_REGEX.test(code)) {
-            // Debug log for rejected codes (helps diagnose false positives)
-            console.debug('Rejected code (does not match BX pattern):', code);
-            // update lastScanRef so no immediate "no scan" warning
             lastScanRef.current = Date.now();
             return;
           }
 
-          // --- CONSENSUS: require same code to appear several times within window
           const now = Date.now();
           const map = recentDetections.current;
           const prev = map.get(code) ?? { count: 0, last: now };
 
-          // reset count if outside window
           if (now - prev.last > CONSENSUS_WINDOW_MS) {
             prev.count = 0;
           }
@@ -195,28 +180,28 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           prev.last = now;
           map.set(code, prev);
 
-          // cleanup old entries
           map.forEach((v, k) => {
             if (now - v.last > CONSENSUS_WINDOW_MS) {
               map.delete(k);
             }
           });
 
-          console.debug(`Consensus for ${code}: ${prev.count}/${CONSENSUS_REQUIRED}`);
-
           if (prev.count < CONSENSUS_REQUIRED) {
             lastScanRef.current = now;
             return;
           }
 
-          // We have consensus — proceed and clear consensus for this code
           map.delete(code);
 
-          // mark processing and update UI state
           processingRef.current = true;
           lastScanRef.current = Date.now();
           setShowScanWarning(false);
           setError(null);
+          setDuplicateWarning({ show: false, remaining: 0, message: undefined });
+          if (duplicateTimerRef.current) {
+            window.clearInterval(duplicateTimerRef.current);
+            duplicateTimerRef.current = null;
+          }
 
           try {
             const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
@@ -224,16 +209,12 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
               throw new Error('Backend URL not configured');
             }
 
-            // Get session token for authentication
-            const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken
-            
+            const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken;
             if (!sessionToken) {
               throw new Error('Authentication required - please log in');
             }
 
             const fullUrl = `${backendUrl}/products/barcode/${encodeURIComponent(code)}`;
-            console.log('📡 MAKING REQUEST TO:', fullUrl);
-
             const res = await fetch(fullUrl, {
               method: 'GET',
               headers: {
@@ -241,9 +222,6 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
                 'Authorization': `Bearer ${sessionToken}`,
               },
             });
-
-            console.log('📡 RESPONSE STATUS:', res.status);
-            console.log('📡 RESPONSE OK:', res.ok);
 
             if (!res.ok) {
               if (res.status === 404) {
@@ -253,46 +231,108 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
             }
 
             const json = await res.json();
-
             if (!mountedRef.current) return;
 
             if (json.success && json.data) {
               setResult(json.data);
-              
-              // Create inventory transaction for the scanned barcode
+              onScanResult?.(json.data);
+
+              // treat any 'checked out' status from backend as trigger to show the return form
+              const statusStr = String(json.data.status ?? '').trim().toLowerCase();
+
+              // Recommended: open return form when barcode is currently CHECKED_OUT
+              if (statusStr === 'checked_out') {
+                processingRef.current = true; // pause scanner
+                setShowReturnForm(true);
+                return;
+              }
+
+              // === end updated check ===
+
+              // Create inventory transaction (original checkout flow)
               try {
-                // Get current user from NextAuth session
-                const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken
-                const employeeId = (session as { user?: { id?: string } })?.user?.id
-                
-                if (!sessionToken) {
+                const sessionToken2 = (session as { user?: { sessionToken?: string } })?.user?.sessionToken;
+                const employeeId = (session as { user?: { id?: string } })?.user?.id;
+
+                if (!sessionToken2) {
                   console.warn('⚠️ No session token found, skipping transaction creation');
+                  processingRef.current = false;
                   return;
                 }
-                
+
                 if (employeeId) {
+                  const barcodeId = json.data?.id;
+                  const productId = json.data?.product?.id;
+
+                  if (!barcodeId || !productId) {
+                    console.warn('⚠️ Missing barcode ID or product ID from lookup result');
+                    processingRef.current = false;
+                    return;
+                  }
+
                   const transactionResponse = await fetch(`${backendUrl}/products/transactions`, {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${sessionToken}`,
+                      'Authorization': `Bearer ${sessionToken2}`,
                     },
                     body: JSON.stringify({
                       barcodeValue: code,
                       transactionType: 'CHECKOUT',
-                      checkoutQty: 1, // Always 1 because scanning 1 barcode = checking out 1 box
+                      checkoutQty: 1,
                       employeeId: employeeId,
                       remarks: 'Barcode scanned via mobile scanner'
                     })
                   });
 
+                  if (transactionResponse.status === 409) {
+                    const dupJson = await transactionResponse.json().catch(() => ({}));
+                    const remaining = typeof dupJson?.remainingSeconds === 'number' ? dupJson.remainingSeconds : (dupJson?.remainingSeconds ?? 0);
+                    const message = dupJson?.message || 'Duplicate scan detected';
+
+                    setDuplicateWarning({
+                      show: true,
+                      remaining: remaining || 5,
+                      message: message
+                    });
+
+                    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+                      try { navigator.vibrate?.(200); } catch (e) { /* ignore */ }
+                    }
+
+                    if (duplicateTimerRef.current) {
+                      window.clearInterval(duplicateTimerRef.current);
+                      duplicateTimerRef.current = null;
+                    }
+
+                    duplicateTimerRef.current = window.setInterval(() => {
+                      setDuplicateWarning(prev => {
+                        if (!prev.show) {
+                          if (duplicateTimerRef.current) {
+                            window.clearInterval(duplicateTimerRef.current);
+                            duplicateTimerRef.current = null;
+                          }
+                          return prev;
+                        }
+                        if (prev.remaining <= 1) {
+                          if (duplicateTimerRef.current) {
+                            window.clearInterval(duplicateTimerRef.current);
+                            duplicateTimerRef.current = null;
+                          }
+                          return { show: false, remaining: 0, message: undefined };
+                        }
+                        return { ...prev, remaining: prev.remaining - 1 };
+                      });
+                    }, 1000);
+
+                    processingRef.current = false;
+                    return;
+                  }
+
                   if (transactionResponse.ok) {
                     const transactionData = await transactionResponse.json();
-                    console.log('✅ Transaction created:', transactionData);
-                    
-                    // Verify transaction was actually created
                     if (transactionData.success) {
-                      console.log('✅ Transaction confirmed in database');
+                      onInventoryChange?.();
                     } else {
                       console.warn('⚠️ Transaction creation failed:', transactionData.error);
                     }
@@ -305,12 +345,10 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
                 }
               } catch (transactionError) {
                 console.error('❌ Error creating transaction:', transactionError);
-                // Don't fail the scan if transaction creation fails
               }
 
               onScan?.(code);
 
-              // Auto-clear result after 4 seconds
               setTimeout(() => {
                 if (mountedRef.current) {
                   setResult(null);
@@ -327,7 +365,6 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
               ? fetchError.message
               : 'Failed to lookup barcode';
 
-            // Show different messages for different error types
             if (errorMessage.includes('not found')) {
               setError(`🔍 Barcode "${code}" not found in inventory`);
             } else if (errorMessage.includes('Backend URL not configured')) {
@@ -341,18 +378,18 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
                 setError(null);
                 processingRef.current = false;
               }
-            }, 4000); // Show error longer for better visibility
+            }, 4000);
           }
         });
 
-        // Warning timer for no scans
-        warningTimer = setInterval(() => {
+        warningTimer = window.setInterval(() => {
           if (!mountedRef.current) return;
-
           if (Date.now() - lastScanRef.current > 8000 && !processingRef.current) {
             setShowScanWarning(true);
           }
         }, 2000);
+
+        warningTimerRef.current = warningTimer;
 
       } catch (importError) {
         console.error('Failed to load scanner:', importError);
@@ -365,36 +402,27 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
 
     return () => {
       cancelled = true;
-      clearInterval(warningTimer);
+      if (warningTimer) {
+        window.clearInterval(warningTimer);
+      }
+      if (duplicateTimerRef.current) {
+        window.clearInterval(duplicateTimerRef.current);
+        duplicateTimerRef.current = null;
+      }
 
       try {
         if (quaggaRef.current) {
-          // remove handlers and stop Quagga
-          try {
-            quaggaRef.current.offDetected();
-          } catch {
-            // older/newer API differences - ignore
-          }
-          try {
-            quaggaRef.current.stop();
-          } catch {
-            // ignore
-          }
+          try { quaggaRef.current.offDetected?.(); } catch { }
+          try { quaggaRef.current.stop?.(); } catch { }
         }
 
-        // Full camera shutdown
         const videos = document.querySelectorAll('video');
         videos.forEach(video => {
-          const stream = video.srcObject as MediaStream | null;
+          const stream = (video as HTMLVideoElement).srcObject as MediaStream | null;
           if (stream) {
-            stream.getTracks().forEach(track => {
-              track.stop();
-            });
+            stream.getTracks().forEach(track => track.stop());
           }
-          // defensive cleanup
-          try {
-            (video as HTMLVideoElement).srcObject = null;
-          } catch {}
+          try { (video as HTMLVideoElement).srcObject = null; } catch { }
         });
       } catch (cleanupError) {
         console.warn('Cleanup error:', cleanupError);
@@ -402,10 +430,9 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
 
       initializedRef.current = false;
       processingRef.current = false;
-      const detections = recentDetections.current;
-      detections.clear();
+      recentDetections.current.clear();
     };
-  }, [isOpen, onScan]);
+  }, [isOpen, onScan, onInventoryChange, onScanResult, session]);
 
   const handleClose = () => {
     setIsOpen(false);
@@ -414,6 +441,12 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
     setCameraError(null);
     setShowScanWarning(false);
     setIsLoading(false);
+
+    setDuplicateWarning({ show: false, remaining: 0, message: undefined });
+    if (duplicateTimerRef.current) {
+      window.clearInterval(duplicateTimerRef.current);
+      duplicateTimerRef.current = null;
+    }
   };
 
   return (
@@ -438,14 +471,14 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
               <AlertCircle className="h-8 w-8 text-red-600 mx-auto mb-2" />
               <p className="text-red-700 text-sm font-medium mb-2">Camera Error</p>
               <p className="text-red-600 text-xs">{cameraError}</p>
-              <Button 
+              <Button
                 onClick={() => {
                   setCameraError(null);
                   setIsOpen(false);
                   setTimeout(() => setIsOpen(true), 100);
-                }} 
-                variant="outline" 
-                size="sm" 
+                }}
+                variant="outline"
+                size="sm"
                 className="mt-3"
               >
                 Try Again
@@ -453,12 +486,7 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
             </div>
           ) : (
             <div className="relative bg-black rounded-xl overflow-hidden">
-              {/* Fixed height container for scanner */}
-              <div
-                id={SCANNER_ID}
-                className="relative w-full"
-                style={{ height: 320 }}
-              >
+              <div id={SCANNER_ID} className="relative w-full" style={{ height: 320 }}>
                 {isLoading && (
                   <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
                     <div className="text-white text-center">
@@ -469,41 +497,43 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
                 )}
               </div>
 
-              {/* Scanner overlay */}
               <div className="absolute inset-6 border-2 border-blue-400 rounded-lg pointer-events-none">
                 <div className="scanner-line" />
               </div>
 
-              {/* Scanning instructions */}
-              {!isLoading && !result && !error && (
+              {!isLoading && !result && !error && !duplicateWarning.show && (
                 <div className="absolute top-4 left-4 right-4 bg-blue-500 bg-opacity-90 text-white p-2 rounded text-xs text-center">
                   📱 Point camera at barcode and hold steady
                 </div>
               )}
 
-              {/* No scan warning */}
-              {showScanWarning && !result && !error && !isLoading && (
+              {showScanWarning && !result && !error && !isLoading && !duplicateWarning.show && (
                 <div className="absolute top-4 left-4 right-4 bg-yellow-500 text-black p-2 rounded text-sm text-center">
                   ⚠️ No barcode detected — improve lighting or move closer
                 </div>
               )}
 
-              {/* Success result */}
-              {result && (
-                <div className="absolute bottom-4 left-4 right-4 bg-green-500 text-white p-3 rounded-lg">
-                  <p className="font-semibold text-sm">
-                    ✅ {result.product.productName}
-                  </p>
-                  <p className="text-xs opacity-90">
-                    SKU: {result.product.sku} | Serial: {result.serialNumber}
-                  </p>
-                  <p className="text-xs opacity-90">
-                    Box Qty: {result.product.boxQty} | Status: {result.status}
-                  </p>
+              {duplicateWarning.show && (
+                <div className="absolute top-4 left-4 right-4 bg-yellow-600 text-white p-2 rounded text-sm text-center flex items-center justify-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <div>
+                    <div className="font-medium">🚫 Duplicate scan detected</div>
+                    <div className="text-xs opacity-90">
+                      {duplicateWarning.message ?? 'This barcode was scanned recently.'}
+                      {duplicateWarning.remaining > 0 && ` Please wait ${duplicateWarning.remaining}s.`}
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {/* Error message */}
+              {result && (
+                <div className="absolute bottom-4 left-4 right-4 bg-green-500 text-white p-3 rounded-lg">
+                  <p className="font-semibold text-sm">✅ {result.product.productName}</p>
+                  <p className="text-xs opacity-90">SKU: {result.product.sku} | Serial: {result.serialNumber}</p>
+                  <p className="text-xs opacity-90">Box Qty: {result.product.boxQty} | Status: {result.status}</p>
+                </div>
+              )}
+
               {error && (
                 <div className="absolute bottom-4 left-4 right-4 bg-red-500 text-white p-3 rounded-lg">
                   <p className="text-sm">{error}</p>
@@ -513,21 +543,12 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           )}
 
           <div className="flex gap-2">
-            <Button onClick={handleClose} variant="outline" className="flex-1">
-              Close Scanner
-            </Button>
+            <Button onClick={handleClose} variant="outline" className="flex-1">Close Scanner</Button>
             {cameraError && (
-              <Button 
-                onClick={() => window.location.reload()} 
-                variant="default" 
-                size="sm"
-              >
-                Refresh Page
-              </Button>
+              <Button onClick={() => window.location.reload()} variant="default" size="sm">Refresh Page</Button>
             )}
           </div>
 
-          {/* Help text */}
           <div className="text-xs text-gray-500 text-center space-y-1">
             <p>Supports most barcode formats including Code 128, EAN, UPC</p>
             <p>Make sure barcode is well-lit and in focus</p>
@@ -540,6 +561,30 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
             </div>
           </div>
         </div>
+
+        {/* Render ReturnForm when needed */}
+        {showReturnForm && result && (
+          <div className="p-4 border-t">
+            {/* Render ReturnForm when needed (controlled via isOpen/onOpenChange) */}
+            { /* showReturnForm toggles the dialog; ReturnForm will fetch the employee checkouts */}
+            <ReturnForm
+              employeeId={(session as any)?.user?.id} // or session?.user?.id — ensure session shape
+              isOpen={showReturnForm}
+              onOpenChange={(open: boolean) => {
+                setShowReturnForm(open);
+                processingRef.current = open;
+              }}
+
+              onReturnComplete={() => {
+                setShowReturnForm(false);
+                processingRef.current = false;
+                onInventoryChange?.();
+              }}
+            />
+
+          </div>
+        )}
+
       </SheetContent>
 
       <style jsx>{`
@@ -551,14 +596,9 @@ export default function BarcodeScanner({ onScan }: BarcodeScannerProps) {
           background: rgba(59, 130, 246, 0.9);
           animation: scan 2.2s linear infinite;
         }
-
         @keyframes scan {
-          0% {
-            top: 0;
-          }
-          100% {
-            top: 100%;
-          }
+          0% { top: 0; }
+          100% { top: 100%; }
         }
       `}</style>
     </Sheet>

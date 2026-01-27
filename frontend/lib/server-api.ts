@@ -2497,3 +2497,344 @@ export async function getDatabaseStats(): Promise<GetDatabaseStatsResponse> {
     }
   }
 }
+
+// Inventory API Types
+export type InventoryTransaction = {
+  id: string;
+  transactionType: 'CHECKOUT' | 'RETURN' | 'ADJUST';
+  checkoutQty: number;
+  returnedQty: number;
+  usedQty: number;
+  remarks?: string;
+  createdAt: string;
+  product?: {
+    id: string;
+    sku: string;
+    productName: string;
+    boxQty: number;
+  };
+  employee?: {
+    id: string;
+    name: string;
+    employeeId: string;
+  };
+  barcode?: {
+    id: string;
+    barcodeValue: string;
+    serialNumber: string;
+    status: string;
+  };
+};
+
+export type CreateInventoryTransactionRequest = {
+  productId: string;
+  barcodeId?: string;
+  employeeId: string;
+  transactionType: 'CHECKOUT' | 'RETURN' | 'ADJUST';
+  checkoutQty?: number;
+  returnedQty?: number;
+  usedQty?: number;
+  remarks?: string;
+};
+
+export type InventoryAllocation = {
+  id: string;
+  allocatedUnits: number;
+  createdAt: string;
+  updatedAt: string;
+  product?: {
+    id: string;
+    sku: string;
+    productName: string;
+    boxQty: number;
+  };
+  employee?: {
+    id: string;
+    name: string;
+    employeeId: string;
+  };
+};
+
+export type LowStockAlert = {
+  id: string;
+  stockAtTrigger: number;
+  triggeredAt: string;
+  product?: {
+    id: string;
+    sku: string;
+    productName: string;
+    totalUnits: number;
+    reorderThreshold: number;
+    currentAvailable: number;
+  };
+};
+
+// Inventory API Functions
+export async function createInventoryTransaction(data: CreateInventoryTransactionRequest, sessionToken?: string): Promise<{
+  success: boolean;
+  data?: InventoryTransaction;
+  error?: string;
+  message?: string;
+}> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (sessionToken) {
+      headers['Authorization'] = `Bearer ${sessionToken}`;
+    } else if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/inventory/transactions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data)
+    });
+
+    return await res.json();
+  } catch (error) {
+    console.error('Create inventory transaction error:', error);
+    return {
+      success: false,
+      error: 'Failed to create inventory transaction'
+    };
+  }
+}
+
+export async function getInventoryTransactions(params?: {
+  page?: number;
+  limit?: number;
+  employeeId?: string;
+  productId?: string;
+  transactionType?: string;
+  startDate?: string;
+  endDate?: string;
+}): Promise<{
+  success: boolean;
+  data?: {
+    transactions: InventoryTransaction[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+  error?: string;
+}> {
+  try {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.employeeId) searchParams.append('employeeId', params.employeeId);
+    if (params?.productId) searchParams.append('productId', params.productId);
+    if (params?.transactionType) searchParams.append('transactionType', params.transactionType);
+    if (params?.startDate) searchParams.append('startDate', params.startDate);
+    if (params?.endDate) searchParams.append('endDate', params.endDate);
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/inventory/transactions?${searchParams}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+
+    return await res.json();
+  } catch (error) {
+    console.error('Get inventory transactions error:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch inventory transactions'
+    };
+  }
+}
+
+export async function getAvailableUnits(productId: string, sessionToken?: string): Promise<{
+  success: boolean;
+  data?: {
+    productId: string;
+    availableUnits: number;
+  };
+  error?: string;
+}> {
+  try {
+    const headers: Record<string, string> = {};
+    
+    if (sessionToken) {
+      headers['Authorization'] = `Bearer ${sessionToken}`;
+    } else if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/inventory/available/${productId}`, {
+      headers
+    });
+
+    return await res.json();
+  } catch (error) {
+    console.error('Get available units error:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch available units'
+    };
+  }
+}
+
+export async function getLowStockAlerts(params?: {
+  page?: number;
+  limit?: number;
+}): Promise<{
+  success: boolean;
+  data?: {
+    alerts: LowStockAlert[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+  error?: string;
+}> {
+  try {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/inventory/low-stock-alerts?${searchParams}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+
+    return await res.json();
+  } catch (error) {
+    console.error('Get low stock alerts error:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch low stock alerts'
+    };
+  }
+}
+
+export async function getAllocations(params?: {
+  page?: number;
+  limit?: number;
+  employeeId?: string;
+  productId?: string;
+}): Promise<{
+  success: boolean;
+  data?: {
+    allocations: InventoryAllocation[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
+  error?: string;
+}> {
+  try {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.employeeId) searchParams.append('employeeId', params.employeeId);
+    if (params?.productId) searchParams.append('productId', params.productId);
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/inventory/allocations?${searchParams}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+
+    return await res.json();
+  } catch (error) {
+    console.error('Get allocations error:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch allocations'
+    };
+  }
+}
+
+export async function checkProductLowStock(productId: string): Promise<{
+  success: boolean;
+  data?: any;
+  error?: string;
+  message?: string;
+}> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/inventory/check-low-stock/${productId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+
+    return await res.json();
+  } catch (error) {
+    console.error('Check product low stock error:', error);
+    return {
+      success: false,
+      error: 'Failed to check product low stock'
+    };
+  }
+}
+export async function getEmployeeCheckouts(employeeId: string, sessionToken?: string): Promise<{
+  success: boolean;
+  data?: {
+    employeeId: string;
+    checkouts: Array<{
+      id: string;
+      checkoutTime: string;
+      barcode: {
+        id: string;
+        barcodeValue: string;
+        serialNumber: string;
+        boxQty: number;
+        status: string;
+        product: {
+          id: string;
+          sku: string;
+          productName: string;
+          description?: string;
+        } | null;
+      };
+    }>;
+    total: number;
+  };
+  error?: string;
+}> {
+  try {
+    const headers: Record<string, string> = {};
+    
+    if (sessionToken) {
+      headers['Authorization'] = `Bearer ${sessionToken}`;
+    } else if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/inventory/employee-checkouts/${employeeId}`, {
+      headers
+    });
+
+    return await res.json();
+  } catch (error) {
+    console.error('Get employee checkouts error:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch employee checkouts'
+    };
+  }
+}

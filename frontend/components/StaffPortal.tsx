@@ -366,7 +366,9 @@ export function StaffPortal() {
               {/* Barcode Scanner - Only for Field Engineers */}
               {employeeProfile?.role === 'FIELD_ENGINEER' && (
                 <div className="flex items-center justify-center">
-                  <BarcodeScanner onScan={handleProductScan} />
+                  <BarcodeScanner 
+                    onScan={handleProductScan}
+                  />
                 </div>
               )}
               <Button

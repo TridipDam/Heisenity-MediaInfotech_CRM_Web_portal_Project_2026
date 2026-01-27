@@ -71,7 +71,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <title>CRM Demo</title>
+        <title>CRM Portal</title>
         <meta name="description" content="CRM Demo Application" />
       </head>
       <body

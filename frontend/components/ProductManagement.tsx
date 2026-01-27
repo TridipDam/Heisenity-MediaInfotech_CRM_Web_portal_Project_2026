@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
 import { useSession } from "next-auth/react"
 import { GenerateLabelsDialog } from "./GenerateLabelsDialog"
+import { getAvailableUnits } from "@/lib/server-api"
 import { 
   Search, 
   Filter, 
@@ -39,6 +40,8 @@ interface Product {
   description?: string
   boxQty: number
   totalUnits: number
+  availableUnits?: number // Add available units from inventory
+  reorderThreshold?: number
   unitPrice?: number
   supplier?: string
   status: string
@@ -68,14 +71,18 @@ interface BarcodeHistory {
   }
 }
 
-const getStockStatus = (totalUnits: number) => {
-  if (totalUnits === 0) return "out_of_stock"
-  if (totalUnits <= 10) return "low_stock" // Fixed threshold of 10 units
+const getStockStatus = (totalUnits: number, availableUnits?: number, reorderThreshold?: number) => {
+  const available = availableUnits ?? totalUnits;
+  const threshold = reorderThreshold ?? 10;
+  
+  if (available === 0) return "out_of_stock"
+  if (available <= threshold) return "low_stock"
   return "in_stock"
 }
 
 export function ProductManagement() {
   const [products, setProducts] = React.useState<Product[]>([])
+  const [availableUnitsMap, setAvailableUnitsMap] = React.useState<Record<string, number>>({})
   const [searchTerm, setSearchTerm] = React.useState("")
   const [selectedStatus, setSelectedStatus] = React.useState("all")
   const [isAddProductOpen, setIsAddProductOpen] = React.useState(false)
@@ -136,7 +143,36 @@ export function ProductManagement() {
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
-          setProducts(data.data)
+          const productsData = data.data
+          setProducts(productsData)
+          
+          // Fetch available units for each product
+          const availableUnitsPromises = productsData.map(async (product: Product) => {
+            try {
+              const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken;
+              const availableResponse = await getAvailableUnits(product.id, sessionToken);
+              if (availableResponse.success && availableResponse.data) {
+                return {
+                  productId: product.id,
+                  availableUnits: availableResponse.data.availableUnits
+                }
+              }
+            } catch (error) {
+              console.warn(`Failed to fetch available units for product ${product.id}:`, error)
+            }
+            return {
+              productId: product.id,
+              availableUnits: product.totalUnits // Fallback to total units
+            }
+          })
+          
+          const availableUnitsResults = await Promise.all(availableUnitsPromises)
+          const availableUnitsMap = availableUnitsResults.reduce((acc, result) => {
+            acc[result.productId] = result.availableUnits
+            return acc
+          }, {} as Record<string, number>)
+          
+          setAvailableUnitsMap(availableUnitsMap)
         } else {
           throw new Error(data.error || 'Failed to fetch products')
         }
@@ -154,6 +190,62 @@ export function ProductManagement() {
       setIsLoadingProducts(false)
     }
   }, [isAuthenticated, session, toast])
+
+  const refreshInventoryData = React.useCallback(async () => {
+    if (!products.length) return;
+    
+    try {
+      const availableUnitsPromises = products.map(async (product: Product) => {
+        try {
+          const sessionToken = (session as { user?: { sessionToken?: string } })?.user?.sessionToken;
+          const availableResponse = await getAvailableUnits(product.id, sessionToken);
+          if (availableResponse.success && availableResponse.data) {
+            return {
+              productId: product.id,
+              availableUnits: availableResponse.data.availableUnits
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch available units for product ${product.id}:`, error)
+        }
+        return {
+          productId: product.id,
+          availableUnits: product.totalUnits // Fallback to total units
+        }
+      })
+      
+      const availableUnitsResults = await Promise.all(availableUnitsPromises)
+      const newAvailableUnitsMap = availableUnitsResults.reduce((acc, result) => {
+        acc[result.productId] = result.availableUnits
+        return acc
+      }, {} as Record<string, number>)
+      
+      setAvailableUnitsMap(newAvailableUnitsMap)
+      
+      toast({
+        title: "Success",
+        description: "Inventory data refreshed successfully"
+      })
+    } catch (error) {
+      console.error('Error refreshing inventory data:', error)
+      toast({
+        title: "Error",
+        description: "Failed to refresh inventory data",
+        variant: "destructive"
+      })
+    }
+  }, [products, session, toast])
+
+  // Auto-refresh inventory data every 30 seconds to catch any changes
+  React.useEffect(() => {
+    if (!products.length || !isAuthenticated) return;
+
+    const interval = setInterval(() => {
+      refreshInventoryData();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [products.length, isAuthenticated, refreshInventoryData]);
 
   // Fetch products on component mount
   React.useEffect(() => {
@@ -212,8 +304,14 @@ export function ProductManagement() {
   // Calculate summary statistics
   const totalProducts = products.length
   const activeProducts = products.filter(p => p.isActive).length
-  const lowStockProducts = products.filter(p => getStockStatus(p.totalUnits) === "low_stock").length
-  const outOfStockProducts = products.filter(p => getStockStatus(p.totalUnits) === "out_of_stock").length
+  const lowStockProducts = products.filter(p => {
+    const availableUnits = availableUnitsMap[p.id]
+    return getStockStatus(p.totalUnits, availableUnits, p.reorderThreshold) === "low_stock"
+  }).length
+  const outOfStockProducts = products.filter(p => {
+    const availableUnits = availableUnitsMap[p.id]
+    return getStockStatus(p.totalUnits, availableUnits, p.reorderThreshold) === "out_of_stock"
+  }).length
 
   // Filter products based on search and filters
   const filteredProducts = products.filter(product => {
@@ -221,7 +319,8 @@ export function ProductManagement() {
                          product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
     
-    const status = getStockStatus(product.totalUnits)
+    const availableUnits = availableUnitsMap[product.id]
+    const status = getStockStatus(product.totalUnits, availableUnits, product.reorderThreshold)
     const matchesStatus = selectedStatus === "all" || status === selectedStatus
     
     return matchesSearch && matchesStatus && product.isActive
@@ -441,7 +540,10 @@ export function ProductManagement() {
               <Button 
                 variant="outline" 
                 className="border-gray-300 hover:bg-gray-50"
-                onClick={fetchProducts}
+                onClick={() => {
+                  fetchProducts();
+                  refreshInventoryData();
+                }}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
@@ -674,7 +776,7 @@ export function ProductManagement() {
               <TableRow className="bg-gray-50/80 border-b border-gray-200">
                 <TableHead className="w-[280px] py-4 px-6 font-semibold text-gray-700">Product Details</TableHead>
                 <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Status</TableHead>
-                <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Stock Levels</TableHead>
+                <TableHead className="w-[140px] py-4 px-6 font-semibold text-gray-700">Stock Levels</TableHead>
                 <TableHead className="w-[100px] py-4 px-6 font-semibold text-gray-700">Unit Price</TableHead>
                 <TableHead className="w-[120px] py-4 px-6 font-semibold text-gray-700">Total Value</TableHead>
                 <TableHead className="w-[150px] py-4 px-6 font-semibold text-gray-700">Supplier</TableHead>
@@ -731,19 +833,26 @@ export function ProductManagement() {
                       <TableCell className="py-4 px-6">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-gray-900">{product.totalUnits}</span>
+                            <div className="text-sm">
+                              <div className="font-semibold text-gray-900">
+                                {availableUnitsMap[product.id] ?? product.totalUnits} / {product.totalUnits}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Available / Total
+                              </div>
+                            </div>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div 
                               className={`h-2 rounded-full ${
-                                product.totalUnits === 0
+                                (availableUnitsMap[product.id] ?? product.totalUnits) === 0
                                   ? 'bg-red-500' 
-                                  : product.totalUnits <= 10 
+                                  : (availableUnitsMap[product.id] ?? product.totalUnits) <= (product.reorderThreshold ?? 10)
                                     ? 'bg-amber-500' 
                                     : 'bg-green-500'
                               }`}
                               style={{ 
-                                width: `${Math.min((product.totalUnits / 100) * 100, 100)}%` 
+                                width: `${Math.min(((availableUnitsMap[product.id] ?? product.totalUnits) / Math.max(product.totalUnits, 1)) * 100, 100)}%` 
                               }}
                             ></div>
                           </div>
@@ -761,7 +870,17 @@ export function ProductManagement() {
                       <TableCell className="py-4 px-6">
                         <div className="text-sm">
                           {product.unitPrice ? (
-                            <span className="font-semibold text-gray-900">₹{(product.unitPrice * product.totalUnits).toFixed(2)}</span>
+                            <div>
+                              <span className="font-semibold text-gray-900">
+                                ₹{(product.unitPrice * (availableUnitsMap[product.id] ?? product.totalUnits)).toFixed(2)}
+                              </span>
+                              <div className="text-xs text-gray-500">Available Value</div>
+                              {availableUnitsMap[product.id] !== product.totalUnits && (
+                                <div className="text-xs text-gray-400">
+                                  Total: ₹{(product.unitPrice * product.totalUnits).toFixed(2)}
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-gray-400">-</span>
                           )}

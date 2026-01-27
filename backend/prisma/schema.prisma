@@ -1048,6 +1048,7 @@ model InventoryTransaction {
 model Allocation {
   id             BigInt   @id @default(autoincrement())
   allocatedUnits Int      @map("allocated_units")
+  createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @default(now()) @map("updated_at")
 
   employeeId String

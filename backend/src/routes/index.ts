@@ -16,6 +16,7 @@ import { ticketUploadRouter } from '../modules/tickets/upload.route';
 import customerRoutes from '../modules/customers/customer.route';
 import customerSupportRoutes from '../modules/customers/customerSupport.route';
 import productRoutes from '../modules/products/product.route';
+import inventoryRoutes from '../modules/Inventory/inventory.route';
 import meetingRoutes from '../modules/meetings/meeting.route';
 import calendlyRoutes from '../modules/meetings/calendly.route';
 import databaseRoutes from './database.route';
@@ -98,6 +99,9 @@ router.use('/customer-support', customerSupportRoutes);
 
 // Mount product routes
 router.use('/products', productRoutes);
+
+// Mount inventory routes
+router.use('/inventory', inventoryRoutes);
 
 // Mount meeting routes
 router.use('/meetings', meetingRoutes);

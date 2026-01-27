@@ -3,6 +3,23 @@ import { generateLabelsForProduct } from '../../barcode/labelgenerator';
 import { prisma } from '../../lib/prisma';
 import * as path from 'path';
 import * as fs from 'fs-extra';
+import { updateProductInventory } from '../Inventory/inventory.service';
+
+// New imports for duplicate-scan detection
+import Redis from 'ioredis';
+import crypto from 'crypto';
+
+// Redis client (reuse across file)
+const redis = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379');
+
+// Duplicate window seconds configurable via env (default 300 seconds = 5 minutes)
+const DUPLICATE_WINDOW_SECONDS = parseInt(process.env.DUPLICATE_WINDOW_SECONDS || '300', 10);
+
+// Minimum seconds required to elapse after checkout before a RETURN is allowed (default 60s)
+const MIN_RETURN_WAIT_SECONDS = parseInt(process.env.MIN_RETURN_WAIT_SECONDS || '60', 10);
+
+// After a RETURN, block further actions for this many seconds (defaults to duplicate window)
+const POST_RETURN_BLOCK_SECONDS = parseInt(process.env.POST_RETURN_BLOCK_SECONDS || String(DUPLICATE_WINDOW_SECONDS), 10);
 
 export const createProduct = async (req: Request, res: Response) => {
   try {
@@ -16,33 +33,33 @@ export const createProduct = async (req: Request, res: Response) => {
     }
 
     let finalSku = sku;
-    
+
     // Generate unique SKU if not provided
     if (!finalSku) {
       let attempts = 0;
       const maxAttempts = 10;
-      
+
       do {
         // Use a more unique timestamp-based approach
         const timestamp = Date.now();
         const randomSuffix = Math.random().toString(36).substr(2, 8).toUpperCase();
         finalSku = `PRD-${timestamp}-${randomSuffix}`;
-        
+
         // Check if this SKU already exists
         const existingProduct = await prisma.product.findUnique({
           where: { sku: finalSku }
         });
-        
+
         if (!existingProduct) {
           break; // SKU is unique, we can use it
         }
-        
+
         attempts++;
         // Add a small delay to ensure different timestamps
         await new Promise(resolve => setTimeout(resolve, 10));
-        
+
       } while (attempts < maxAttempts);
-      
+
       if (attempts >= maxAttempts) {
         return res.status(500).json({
           error: 'Failed to generate unique SKU after multiple attempts'
@@ -102,7 +119,7 @@ export const createProduct = async (req: Request, res: Response) => {
 
   } catch (error: any) {
     console.error('Error creating product:', error);
-    
+
     // Handle unique constraint violations
     if (error.code === 'P2002') {
       return res.status(409).json({
@@ -304,7 +321,7 @@ export const updateProduct = async (req: Request, res: Response) => {
 
   } catch (error: any) {
     console.error('Error updating product:', error);
-    
+
     // Handle unique constraint violations
     if (error.code === 'P2002') {
       return res.status(409).json({
@@ -604,7 +621,7 @@ export const generateLabels = async (req: Request, res: Response) => {
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-    
+
     const fileStream = fs.createReadStream(pdfPath);
     fileStream.pipe(res);
 
@@ -627,7 +644,7 @@ export const generateLabels = async (req: Request, res: Response) => {
 
   } catch (error: any) {
     console.error('Error generating labels:', error);
-    
+
     if (!res.headersSent) {
       res.status(500).json({
         error: 'Failed to generate labels',
@@ -637,8 +654,12 @@ export const generateLabels = async (req: Request, res: Response) => {
   }
 };
 
-// Create inventory transaction when barcode is scanned
 export const createInventoryTransaction = async (req: Request, res: Response) => {
+  // Track whether we set the duplicate key and the token used (for safe cleanup)
+  let duplicateKeySet = false;
+  let duplicateKey = '';
+  let duplicateToken = '';
+
   try {
     const { barcodeValue, transactionType, checkoutQty, returnedQty, usedQty, remarks, employeeId } = req.body;
 
@@ -659,7 +680,7 @@ export const createInventoryTransaction = async (req: Request, res: Response) =>
       });
     }
 
-    // Find the barcode
+    // Find barcode and product early (we need these to decide action and keys)
     const barcode = await prisma.barcode.findFirst({
       where: {
         OR: [
@@ -667,9 +688,7 @@ export const createInventoryTransaction = async (req: Request, res: Response) =>
           { serialNumber: barcodeValue }
         ]
       },
-      include: {
-        product: true
-      }
+      include: { product: true }
     });
 
     if (!barcode) {
@@ -691,152 +710,237 @@ export const createInventoryTransaction = async (req: Request, res: Response) =>
       });
     }
 
-    // Create the inventory transaction
-    const transaction = await prisma.inventoryTransaction.create({
-      data: {
-        transactionType,
-        checkoutQty: checkoutQty || 0,
-        returnedQty: returnedQty || 0,
-        usedQty: usedQty || 0,
-        remarks: remarks || null,
-        barcodeId: barcode.id,
-        productId: barcode.productId,
-        employeeId: employeeId
-      },
-      include: {
-        barcode: true,
-        product: true,
-        employee: {
-          select: {
-            id: true,
-            name: true,
-            employeeId: true
-          }
-        }
-      }
+    // Post-return lock check (blocks immediate re-scans after a RETURN)
+    const postReturnKey = `recent_return:${employeeId}:${barcodeValue}`;
+    const postReturnTtl = await redis.ttl(postReturnKey);
+    if (postReturnTtl > 0) {
+      return res.status(409).json({
+        success: false,
+        duplicate: true,
+        reason: 'recent_return',
+        message: `This item was just returned. Please wait ${postReturnTtl} seconds before scanning again.`,
+        remainingSeconds: postReturnTtl
+      });
+    }
+
+    // Helper: get active checkout (most recent, not returned)
+    const activeCheckout = await prisma.barcodeCheckout.findFirst({
+      where: { barcodeId: barcode.id, isReturned: false },
+      orderBy: { id: 'desc' }
     });
 
-    // Update barcode status if it's a checkout
-    if (transactionType === 'CHECKOUT') {
-      await prisma.barcode.update({
-        where: { id: barcode.id },
-        data: { status: 'CHECKED_OUT' }
-      });
+    // Decide the desired action before setting any duplicate key
+    // If item is checked out and enough time elapsed, auto-return
+    let desiredAction = transactionType; // either 'CHECKOUT' or 'RETURN' expected
+    if (barcode.status === 'CHECKED_OUT' && activeCheckout) {
+      const checkoutTime = new Date(activeCheckout.checkoutTime).getTime();
+      const elapsedSeconds = Math.floor((Date.now() - checkoutTime) / 1000);
 
-      // Create or update barcode checkout record
-      await prisma.barcodeCheckout.create({
-        data: {
-          barcodeId: barcode.id,
-          employeeId: employeeId,
-          isReturned: false
-        }
-      });
-
-      // Update or create allocation
-      const existingAllocation = await prisma.allocation.findUnique({
-        where: {
-          employeeId_productId: {
-            employeeId: employeeId,
-            productId: barcode.productId
-          }
-        }
-      });
-
-      if (existingAllocation) {
-        await prisma.allocation.update({
-          where: { id: existingAllocation.id },
-          data: {
-            allocatedUnits: existingAllocation.allocatedUnits + (checkoutQty || 1) // Default to 1 if not specified
-          }
-        });
+      if (elapsedSeconds >= MIN_RETURN_WAIT_SECONDS) {
+        desiredAction = 'RETURN';
       } else {
-        await prisma.allocation.create({
+        // If client intended RETURN but MIN_RETURN_WAIT not reached, inform client
+        if (transactionType === 'RETURN') {
+          const remaining = MIN_RETURN_WAIT_SECONDS - elapsedSeconds;
+          return res.status(400).json({
+            success: false,
+            error: 'Return not allowed yet',
+            message: `This item was just checked out. Please wait ${remaining} more seconds before returning.`,
+            remainingSeconds: remaining
+          });
+        }
+        // Otherwise keep desiredAction as checkout (or as provided)
+      }
+    }
+
+    // --- Duplicate detection (action-specific) ---
+    // Key pattern: recent_scan:{action}:{employeeId}:{barcodeValue}
+    duplicateKey = `recent_scan:${desiredAction.toLowerCase()}:${employeeId}:${barcodeValue}`;
+    duplicateToken = crypto.randomUUID();
+
+    const setResult = await redis.call(
+      'SET',
+      duplicateKey,
+      duplicateToken,
+      'NX',
+      'EX',
+      DUPLICATE_WINDOW_SECONDS
+    ) as 'OK' | null;
+
+    if (setResult === null) {
+      const ttl = await redis.ttl(duplicateKey);
+      return res.status(409).json({
+        success: false,
+        duplicate: true,
+        error: 'Duplicate scan detected',
+        message: `This action was performed recently by employee ${employeeId}. Please wait ${ttl} seconds before trying again.`,
+        remainingSeconds: ttl > 0 ? ttl : 0
+      });
+    }
+
+    // Mark that we successfully set the duplicate key for this request
+    duplicateKeySet = true;
+
+    if (desiredAction === 'RETURN') {
+      // parse/validate usedQty from request body (may be undefined)
+      const requestedUsedQty = Number(usedQty ?? 0);
+      // ensure non-negative integer
+      const usedQtyClamped = Math.max(0, Math.floor(requestedUsedQty));
+
+      // Do everything in a DB transaction for atomicity
+      const returnTx = await prisma.$transaction(async (tx) => {
+        // Re-fetch barcode inside transaction (fresh)
+        const barcodeRec = await tx.barcode.findUnique({
+          where: { id: barcode.id },
+          select: { boxQty: true, productId: true, barcodeValue: true, serialNumber: true }
+        });
+
+        if (!barcodeRec) {
+          throw new Error('Barcode not found during return transaction');
+        }
+
+        const boxQtyValue = barcodeRec.boxQty ?? 0;
+
+        // Clamp usedQty to [0, boxQty]
+        const actualUsedQty = Math.min(usedQtyClamped, boxQtyValue);
+        const returnToInventory = Math.max(0, boxQtyValue - actualUsedQty);
+
+        // Create inventory transaction record (RETURN)
+        const returnTransaction = await tx.inventoryTransaction.create({
           data: {
-            employeeId: employeeId,
+            transactionType: 'RETURN',
+            checkoutQty: 0,
+            returnedQty: returnToInventory,
+            usedQty: actualUsedQty,
+            remarks: remarks || 'Return via scanner (auto-return)',
+            barcodeId: barcode.id,
             productId: barcode.productId,
-            allocatedUnits: checkoutQty || 1 // Default to 1 if not specified
+            employeeId: employeeId
+          },
+          include: {
+            barcode: true,
+            product: true,
+            employee: {
+              select: { id: true, name: true, employeeId: true }
+            }
           }
         });
-      }
-    }
 
-    // Handle return transaction
-    if (transactionType === 'RETURN') {
-      await prisma.barcode.update({
-        where: { id: barcode.id },
-        data: { status: 'AVAILABLE' }
-      });
+        // Update barcode status to AVAILABLE
+        await tx.barcode.update({
+          where: { id: barcode.id },
+          data: { status: 'AVAILABLE' }
+        });
 
-      // Update barcode checkout record
-      await prisma.barcodeCheckout.updateMany({
-        where: {
-          barcodeId: barcode.id,
-          employeeId: employeeId,
-          isReturned: false
-        },
-        data: {
-          isReturned: true,
-          returnTime: new Date()
+        // Mark checkout record(s) as returned
+        await tx.barcodeCheckout.updateMany({
+          where: { barcodeId: barcode.id, isReturned: false },
+          data: { isReturned: true, returnTime: new Date() }
+        });
+
+        // Update product.totalUnits by returnToInventory (only if > 0)
+        if (returnToInventory > 0) {
+          await tx.product.update({
+            where: { id: barcode.productId },
+            data: { totalUnits: { increment: returnToInventory } }
+          });
         }
-      });
 
-      // Update allocation
-      const existingAllocation = await prisma.allocation.findUnique({
-        where: {
-          employeeId_productId: {
-            employeeId: employeeId,
-            productId: barcode.productId
+        // Update allocation: reduce allocatedUnits by returnToInventory (if an allocation exists)
+        const existingAllocation = await tx.allocation.findUnique({
+          where: {
+            employeeId_productId: {
+              employeeId: employeeId,
+              productId: barcode.productId
+            }
+          }
+        });
+
+        if (existingAllocation) {
+          const newAllocated = Math.max(0, existingAllocation.allocatedUnits - returnToInventory);
+          if (newAllocated === 0) {
+            await tx.allocation.delete({ where: { id: existingAllocation.id } });
+          } else {
+            await tx.allocation.update({ where: { id: existingAllocation.id }, data: { allocatedUnits: newAllocated } });
           }
         }
+
+        return returnTransaction;
       });
 
-      if (existingAllocation) {
-        const newAllocatedUnits = Math.max(0, existingAllocation.allocatedUnits - (returnedQty || 1)); // Default to 1 if returnedQty not specified
-        if (newAllocatedUnits === 0) {
-          await prisma.allocation.delete({
-            where: { id: existingAllocation.id }
-          });
-        } else {
-          await prisma.allocation.update({
-            where: { id: existingAllocation.id },
-            data: { allocatedUnits: newAllocatedUnits }
-          });
-        }
+      // Set post-return block in Redis (best effort)
+      try {
+        await redis.call('SET', postReturnKey, '1', 'NX', 'EX', POST_RETURN_BLOCK_SECONDS);
+      } catch (err) {
+        console.warn('⚠️ Failed to set post-return block in Redis:', err);
       }
+
+      const serializedReturn = {
+        id: returnTx.id.toString(),
+        transactionType: returnTx.transactionType,
+        checkoutQty: returnTx.checkoutQty,
+        returnedQty: returnTx.returnedQty,
+        usedQty: returnTx.usedQty,
+        remarks: returnTx.remarks,
+        createdAt: returnTx.createdAt,
+        barcode: {
+          id: returnTx.barcode.id.toString(),
+          barcodeValue: returnTx.barcode.barcodeValue,
+          serialNumber: returnTx.barcode.serialNumber,
+          status: 'AVAILABLE'
+        },
+        product: {
+          id: returnTx.product.id.toString(),
+          sku: returnTx.product.sku,
+          productName: returnTx.product.productName,
+          boxQty: returnTx.barcode.boxQty
+        },
+        employee: returnTx.employee
+      };
+
+      return res.status(201).json({
+        success: true,
+        data: serializedReturn,
+        message: 'Return processed successfully'
+      });
     }
 
-    // Convert BigInt to string for JSON serialization
-    const serializedTransaction = {
-      id: transaction.id.toString(),
-      transactionType: transaction.transactionType,
-      checkoutQty: transaction.checkoutQty,
-      returnedQty: transaction.returnedQty,
-      usedQty: transaction.usedQty,
-      remarks: transaction.remarks,
-      createdAt: transaction.createdAt,
-      barcode: {
-        id: transaction.barcode.id.toString(),
-        barcodeValue: transaction.barcode.barcodeValue,
-        serialNumber: transaction.barcode.serialNumber,
-        status: transaction.barcode.status
-      },
-      product: {
-        id: transaction.product.id.toString(),
-        sku: transaction.product.sku,
-        productName: transaction.product.productName,
-        boxQty: transaction.barcode.boxQty
-      },
-      employee: transaction.employee
-    };
+    // Use inventory service to handle the transaction
+    const inventoryResult = await updateProductInventory({
+      productId: barcode.productId,
+      barcodeId: barcode.id,
+      employeeId: employeeId,
+      transactionType,
+      checkoutQty: checkoutQty || (transactionType === 'CHECKOUT' ? 1 : 0),
+      returnedQty: returnedQty || (transactionType === 'RETURN' ? 1 : 0),
+      usedQty: usedQty || 0,
+      remarks: remarks || null
+    });
 
+    // Return the result from inventory service
     return res.status(201).json({
       success: true,
-      data: serializedTransaction,
-      message: `${transactionType.toLowerCase()} transaction created successfully`
+      data: inventoryResult,
+      message: `${transactionType} processed successfully`
     });
 
   } catch (error: any) {
     console.error('❌ Error creating inventory transaction:', error);
+
+    // If we set the duplicate key earlier, try to clean it up (only if it still matches our token)
+    if (duplicateKeySet) {
+      try {
+        await redis.eval(
+          `if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end`,
+          1,
+          duplicateKey,
+          duplicateToken
+        );
+      } catch (redisCleanupError) {
+        console.error('⚠️ Failed to clean up duplicate key:', redisCleanupError);
+      }
+    }
+
     return res.status(500).json({
       success: false,
       error: 'Failed to create inventory transaction',
@@ -844,6 +948,7 @@ export const createInventoryTransaction = async (req: Request, res: Response) =>
     });
   }
 };
+
 
 // Get all inventory transactions
 export const getInventoryTransactions = async (req: Request, res: Response) => {
@@ -1006,7 +1111,7 @@ export const lookupBarcode = async (req: Request, res: Response) => {
       },
       take: 10 // Just get first 10 for debugging
     });
-    
+
     console.log('📊 Sample barcodes in database:', allBarcodes.map(b => ({
       id: b.id.toString(),
       barcodeValue: b.barcodeValue,
@@ -1039,7 +1144,7 @@ export const lookupBarcode = async (req: Request, res: Response) => {
     });
 
     console.log('📦 Barcode lookup result:', barcode ? 'Found' : 'Not found');
-    
+
     if (barcode) {
       console.log('✅ Found barcode details:', {
         id: barcode.id.toString(),
@@ -1068,7 +1173,7 @@ export const lookupBarcode = async (req: Request, res: Response) => {
         },
         take: 5
       });
-      
+
       console.log('🔍 Partial matches found:', partialMatches);
     }
 
@@ -1081,6 +1186,7 @@ export const lookupBarcode = async (req: Request, res: Response) => {
 
     // Convert BigInt to string for JSON serialization
     const responseData = {
+      id: barcode.id.toString(), // Add barcode ID for inventory transactions
       product: {
         id: barcode.product.id.toString(),
         sku: barcode.product.sku,
