@@ -25,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch";
-import { Calendar, Clock, Users, Video, FileText, ExternalLink, XCircle } from "lucide-react";
+import { Calendar, Users, Video, FileText, ExternalLink, XCircle } from "lucide-react";
 
 interface Employee {
   id: string;
@@ -72,8 +72,6 @@ export default function CreateMeetingDialog({
     title: "",
     description: "",
     startTime: "",
-    endTime: "",
-    location: "",
     meetingType: "INTERNAL",
     priority: "MEDIUM",
     customerId: "",
@@ -238,7 +236,7 @@ export default function CreateMeetingDialog({
     }
 
     // Validation
-    if (!formData.title || !formData.startTime || !formData.endTime) {
+    if (!formData.title || !formData.startTime ) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -248,16 +246,6 @@ export default function CreateMeetingDialog({
     }
 
     const startTime = new Date(formData.startTime);
-    const endTime = new Date(formData.endTime);
-    
-    if (startTime >= endTime) {
-      toast({
-        title: "Error",
-        description: "End time must be after start time",
-        variant: "destructive"
-      });
-      return;
-    }
 
     if (startTime < new Date()) {
       toast({
@@ -297,8 +285,6 @@ export default function CreateMeetingDialog({
           title: "",
           description: "",
           startTime: "",
-          endTime: "",
-          location: "",
           meetingType: "INTERNAL",
           priority: "MEDIUM",
           customerId: "",
@@ -386,16 +372,6 @@ export default function CreateMeetingDialog({
               />
             </div>
 
-            <div>
-              <Label htmlFor="endTime">End Time *</Label>
-              <Input
-                id="endTime"
-                type="datetime-local"
-                value={formData.endTime}
-                onChange={(e) => handleInputChange('endTime', e.target.value)}
-                required
-              />
-            </div>
           </div>
 
           {/* Meeting Details */}

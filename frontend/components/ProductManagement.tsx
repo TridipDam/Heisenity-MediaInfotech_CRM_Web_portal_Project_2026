@@ -530,7 +530,7 @@ export function ProductManagement() {
                           type="number"
                           value={formData.boxQty}
                           onChange={(e) => setFormData(prev => ({ ...prev, boxQty: e.target.value }))}
-                          placeholder="Units per box"
+                          placeholder="box quantity"
                           required
                           min="1"
                         />
@@ -732,7 +732,6 @@ export function ProductManagement() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-gray-900">{product.totalUnits}</span>
-                            <span className="text-xs text-gray-500">/ {product.boxQty} per box</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div 

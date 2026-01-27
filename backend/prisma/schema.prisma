@@ -86,7 +86,6 @@ model Employee {
   // Meeting relations
   organizedMeetings       Meeting[]                @relation("MeetingOrganizerEmployee")
   meetingAttendances      MeetingAttendee[]        @relation("MeetingAttendees")
-  assignedMeetingTasks    MeetingTask[]            @relation("MeetingTaskAssignee")
 
   @@index([teamId])
   @@index([assignedBy])
@@ -1106,8 +1105,6 @@ model Meeting {
   title       String
   description String?
   startTime   DateTime
-  endTime     DateTime
-  location    String?
   meetingType MeetingType   @default(INTERNAL)
   status      MeetingStatus @default(SCHEDULED)
   priority    MeetingPriority @default(MEDIUM)
@@ -1135,7 +1132,6 @@ model Meeting {
   
   // Relations
   attendees   MeetingAttendee[]
-  tasks       MeetingTask[]
   calendlyMeeting CalendlyMeeting?
 
   @@index([organizerAdminId])
@@ -1165,25 +1161,6 @@ model MeetingAttendee {
   @@map("meeting_attendees")
 }
 
-model MeetingTask {
-  id          String     @id @default(cuid())
-  meetingId   String
-  title       String
-  description String?
-  assigneeId  String?
-  dueDate     DateTime?
-  status      TaskStatus @default(PENDING)
-  
-  meeting     Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  assignee    Employee? @relation("MeetingTaskAssignee", fields: [assigneeId], references: [id])
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([meetingId])
-  @@index([assigneeId])
-  @@map("meeting_tasks")
-}
 
 model CalendlyMeeting {
   id                   String   @id @default(cuid())
@@ -1227,10 +1204,8 @@ enum MeetingType {
 
 enum MeetingStatus {
   SCHEDULED
-  IN_PROGRESS
   COMPLETED
   CANCELLED
-  POSTPONED
 }
 
 enum MeetingPriority {

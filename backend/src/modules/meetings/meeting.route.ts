@@ -10,8 +10,6 @@ import {
   updateAttendeeResponseController,
   getUpcomingMeetingsController,
   getTodaysMeetingsController,
-  createMeetingTaskController,
-  updateMeetingTaskController
 } from './meeting.controller';
 
 const router = Router();
@@ -31,9 +29,5 @@ router.put('/:id/attendees/:employeeId/response', updateAttendeeResponseControll
 // Employee-specific meeting queries
 router.get('/employee/:employeeId/upcoming', getUpcomingMeetingsController);
 router.get('/employee/:employeeId/today', getTodaysMeetingsController);
-
-// Meeting tasks
-router.post('/:id/tasks', createMeetingTaskController);
-router.put('/tasks/:taskId', updateMeetingTaskController);
 
 export default router;

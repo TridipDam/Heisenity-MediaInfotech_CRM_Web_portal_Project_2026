@@ -9,19 +9,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Calendar, 
   Clock, 
-  Users, 
-  MapPin, 
+  Users,  
   Plus, 
   Video,
-  CheckCircle,
   AlertCircle,
   User,
-  ExternalLink,
-  RefreshCw
+  RefreshCw,
+  Edit,
+  Trash2
 } from "lucide-react";
 import { format, isToday, isTomorrow, isThisWeek } from "date-fns";
 import CreateMeetingDialog from "@/components/CreateMeetingDialog";
 import MeetingDetailsDialog from "@/components/MeetingDetailsDialog";
+import EditMeetingDialog from "@/components/EditMeetingDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,8 +37,6 @@ interface Meeting {
   title: string;
   description?: string;
   startTime: string;
-  endTime: string;
-  location?: string;
   meetingType: string;
   status: string;
   priority: string;
@@ -75,18 +73,6 @@ interface Meeting {
       email: string;
     };
   }>;
-  tasks: Array<{
-    id: string;
-    title: string;
-    description?: string;
-    status: string;
-    dueDate?: string;
-    assignee?: {
-      id: string;
-      name: string;
-      employeeId: string;
-    };
-  }>;
 }
 
 export default function MeetingsPage() {
@@ -99,6 +85,8 @@ export default function MeetingsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [typeFilter, setTypeFilter] = useState("ALL");
@@ -147,7 +135,7 @@ export default function MeetingsPage() {
         // Filter upcoming meetings (future meetings, not including today)
         const upcomingFiltered = allMeetings.filter((meeting: Meeting) => {
           const meetingDate = new Date(meeting.startTime);
-          return meetingDate > endOfDay && ['SCHEDULED', 'IN_PROGRESS'].includes(meeting.status);
+          return meetingDate > endOfDay && ['SCHEDULED'].includes(meeting.status);
         });
         
         setUpcomingMeetings(upcomingFiltered);
@@ -235,24 +223,62 @@ export default function MeetingsPage() {
     }
   };
 
-  const formatMeetingTime = (startTime: string, endTime: string) => {
+  const formatMeetingTime = (startTime: string) => {
     const start = new Date(startTime);
-    const end = new Date(endTime);
     
     if (isToday(start)) {
-      return `Today, ${format(start, 'h:mm a')} - ${format(end, 'h:mm a')}`;
+      return `Today, ${format(start, 'h:mm a')}`;
     } else if (isTomorrow(start)) {
-      return `Tomorrow, ${format(start, 'h:mm a')} - ${format(end, 'h:mm a')}`;
+      return `Tomorrow, ${format(start, 'h:mm a')}`;
     } else if (isThisWeek(start)) {
-      return `${format(start, 'EEEE, h:mm a')} - ${format(end, 'h:mm a')}`;
+      return `${format(start, 'EEEE, h:mm a')}`;
     } else {
-      return `${format(start, 'MMM d, h:mm a')} - ${format(end, 'h:mm a')}`;
+      return `${format(start, 'MMM d, h:mm a')}`;
     }
   };
 
   const handleMeetingClick = (meeting: Meeting) => {
     setSelectedMeeting(meeting);
     setDetailsDialogOpen(true);
+  };
+
+  const handleEditMeeting = (meeting: Meeting, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingMeeting(meeting);
+    setEditDialogOpen(true);
+  };
+
+  const handleDeleteMeeting = async (meeting: Meeting, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!confirm(`Are you sure you want to delete the meeting "${meeting.title}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/meetings/${meeting.id}`, {
+        method: 'DELETE'
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Meeting deleted successfully"
+        });
+        fetchMeetings();
+      } else {
+        throw new Error(result.error || 'Failed to delete meeting');
+      }
+    } catch (error) {
+      console.error('Error deleting meeting:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete meeting",
+        variant: "destructive"
+      });
+    }
   };
 
   if (loading) {
@@ -305,28 +331,6 @@ export default function MeetingsPage() {
               <div className="flex items-center justify-end">
                 <div className="flex items-center gap-2">
                   <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => {
-                      setSearchTerm("");
-                      setStatusFilter("SCHEDULED");
-                      setTypeFilter("ALL");
-                    }}
-                  >
-                    View Scheduled
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => {
-                      setSearchTerm("");
-                      setStatusFilter("ALL");
-                      setTypeFilter("CLIENT");
-                    }}
-                  >
-                    Client Meetings
-                  </Button>
-                  <Button 
                     size="sm"
                     onClick={() => setCreateDialogOpen(true)}
                   >
@@ -365,10 +369,8 @@ export default function MeetingsPage() {
                     <SelectContent>
                       <SelectItem value="ALL">All Status</SelectItem>
                       <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                      <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                       <SelectItem value="COMPLETED">Completed</SelectItem>
                       <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                      <SelectItem value="POSTPONED">Postponed</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -443,14 +445,8 @@ export default function MeetingsPage() {
                           <div className="flex items-center gap-4 text-xs text-gray-600 mb-2">
                             <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
-                              {formatMeetingTime(meeting.startTime, meeting.endTime)}
+                              {formatMeetingTime(meeting.startTime)}
                             </div>
-                            {meeting.location && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                {meeting.location}
-                              </div>
-                            )}
                             {meeting.meetingLink && (
                               <div className="flex items-center gap-1">
                                 <Video className="h-3 w-3" />
@@ -471,10 +467,25 @@ export default function MeetingsPage() {
                             {meeting.attendees.length > 0 && (
                               <span>Attendees: {meeting.attendees.length}</span>
                             )}
-                            {meeting.tasks.length > 0 && (
-                              <span>Tasks: {meeting.tasks.length}</span>
-                            )}
                           </div>
+                        </div>
+                        <div className="flex items-center gap-1 ml-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
+                            onClick={(e) => handleEditMeeting(meeting, e)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                            onClick={(e) => handleDeleteMeeting(meeting, e)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -522,14 +533,8 @@ export default function MeetingsPage() {
                           <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                             <div className="flex items-center gap-1">
                               <Clock className="h-4 w-4" />
-                              {format(new Date(meeting.startTime), 'h:mm a')} - {format(new Date(meeting.endTime), 'h:mm a')}
+                              {format(new Date(meeting.startTime), 'h:mm a')}
                             </div>
-                            {meeting.location && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-4 w-4" />
-                                {meeting.location}
-                              </div>
-                            )}
                             {meeting.meetingLink && (
                               <div className="flex items-center gap-1">
                                 <Video className="h-4 w-4" />
@@ -552,6 +557,24 @@ export default function MeetingsPage() {
                               </>
                             )}
                           </div>
+                        </div>
+                        <div className="flex items-center gap-1 ml-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
+                            onClick={(e) => handleEditMeeting(meeting, e)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                            onClick={(e) => handleDeleteMeeting(meeting, e)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -597,14 +620,8 @@ export default function MeetingsPage() {
                           <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                             <div className="flex items-center gap-1">
                               <Clock className="h-4 w-4" />
-                              {formatMeetingTime(meeting.startTime, meeting.endTime)}
+                              {formatMeetingTime(meeting.startTime)}
                             </div>
-                            {meeting.location && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-4 w-4" />
-                                {meeting.location}
-                              </div>
-                            )}
                           </div>
                           
                           <div className="flex items-center gap-2 text-sm">
@@ -617,6 +634,24 @@ export default function MeetingsPage() {
                               </>
                             )}
                           </div>
+                        </div>
+                        <div className="flex items-center gap-1 ml-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
+                            onClick={(e) => handleEditMeeting(meeting, e)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                            onClick={(e) => handleDeleteMeeting(meeting, e)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -652,10 +687,8 @@ export default function MeetingsPage() {
                     <SelectContent>
                       <SelectItem value="ALL">All Status</SelectItem>
                       <SelectItem value="SCHEDULED">Scheduled</SelectItem>
-                      <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
                       <SelectItem value="COMPLETED">Completed</SelectItem>
                       <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                      <SelectItem value="POSTPONED">Postponed</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -731,14 +764,8 @@ export default function MeetingsPage() {
                             <div className="space-y-2">
                               <div className="flex items-center gap-2 text-sm text-gray-600">
                                 <Clock className="h-4 w-4" />
-                                {formatMeetingTime(meeting.startTime, meeting.endTime)}
+                                {formatMeetingTime(meeting.startTime)}
                               </div>
-                              {meeting.location && (
-                                <div className="flex items-center gap-2 text-sm text-gray-600">
-                                  <MapPin className="h-4 w-4" />
-                                  {meeting.location}
-                                </div>
-                              )}
                               {meeting.meetingLink && (
                                 <div className="flex items-center gap-2 text-sm text-gray-600">
                                   <Video className="h-4 w-4" />
@@ -787,14 +814,24 @@ export default function MeetingsPage() {
                               <p className="text-sm text-gray-600 line-clamp-2">{meeting.agenda}</p>
                             </div>
                           )}
-                          
-                          {meeting.tasks.length > 0 && (
-                            <div className="flex items-center gap-2 text-sm text-gray-500">
-                              <CheckCircle className="h-4 w-4" />
-                              {meeting.tasks.length} task{meeting.tasks.length !== 1 ? 's' : ''} 
-                              ({meeting.tasks.filter(task => task.status !== 'COMPLETED').length} active)
-                            </div>
-                          )}
+                        </div>
+                        <div className="flex items-center gap-1 ml-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
+                            onClick={(e) => handleEditMeeting(meeting, e)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+                            onClick={(e) => handleDeleteMeeting(meeting, e)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -817,6 +854,13 @@ export default function MeetingsPage() {
         meeting={selectedMeeting}
         open={detailsDialogOpen}
         onOpenChange={setDetailsDialogOpen}
+        onMeetingUpdated={handleMeetingCreated}
+      />
+
+      <EditMeetingDialog
+        meeting={editingMeeting}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
         onMeetingUpdated={handleMeetingCreated}
       />
     </div>

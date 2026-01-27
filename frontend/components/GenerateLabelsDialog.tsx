@@ -48,9 +48,9 @@ export function GenerateLabelsDialog({ product, isOpen, onClose }: GenerateLabel
   React.useEffect(() => {
     const loadPreferences = async () => {
       try {
-        // Set count to product's box quantity when dialog opens, but cap at 30
+        // Set count to product's box quantity when dialog opens, but cap at 10
         if (product) {
-          const defaultCount = Math.min(product.boxQty, 30)
+          const defaultCount = Math.min(product.boxQty, 10)
           setCount(defaultCount.toString())
         }
 
@@ -179,10 +179,10 @@ export function GenerateLabelsDialog({ product, isOpen, onClose }: GenerateLabel
 
       // Validate inputs
       const labelCount = parseInt(count)
-      if (isNaN(labelCount) || labelCount < 1 || labelCount > 30) {
+      if (isNaN(labelCount) || labelCount < 1 || labelCount > 10) {
         toast({
           title: "Invalid Count",
-          description: "Please enter a number between 1 and 30",
+          description: "Please enter a number between 1 and 10",
           variant: "destructive"
         })
         return
@@ -254,8 +254,8 @@ export function GenerateLabelsDialog({ product, isOpen, onClose }: GenerateLabel
 
   const handleClose = () => {
     if (!isGenerating) {
-      // Reset count to product's boxQty when closing, but cap at 30
-      const defaultCount = product ? Math.min(product.boxQty, 30) : 1
+      // Reset count to product's boxQty when closing, but cap at 10
+      const defaultCount = product ? Math.min(product.boxQty, 10) : 1
       setCount(defaultCount.toString())
       setCustomPrefix("")
       setShowCustomPrefix(false)
@@ -300,19 +300,19 @@ export function GenerateLabelsDialog({ product, isOpen, onClose }: GenerateLabel
                   onChange={(e) => setCount(e.target.value)}
                   placeholder={product ? product.boxQty.toString() : "1"}
                   min="1"
-                  max="30"
+                  max="10"
                   required
                 />
                 <p className="text-xs text-gray-500">
-                  Default: {product ? Math.min(product.boxQty, 30) : 1} 
-                  {product && product.boxQty > 30 && (
+                  Default: {product ? Math.min(product.boxQty, 10) : 1} 
+                  {product && product.boxQty > 10 && (
                     <span className="text-amber-600"> (capped from {product.boxQty})</span>
-                  )} • Max: 30 labels
+                  )} • Max: 10 labels
                 </p>
-                {product && product.boxQty > 30 && (
+                {product && product.boxQty > 10 && (
                   <div className="bg-amber-50 border border-amber-200 rounded-md p-2 mt-1">
                     <p className="text-xs text-amber-700">
-                      <strong>Note:</strong> Your box quantity is {product.boxQty}, but we've limited to 30 labels for optimal performance. 
+                      <strong>Note:</strong> Your box quantity is {product.boxQty}, but we've limited to 10 labels for optimal performance. 
                       Generate multiple batches if you need more labels.
                     </p>
                   </div>
@@ -403,7 +403,7 @@ export function GenerateLabelsDialog({ product, isOpen, onClose }: GenerateLabel
               <p>• Labels will be generated as a PDF file</p>
               <p>• Each label includes barcode, SKU, product name, and box quantity</p>
               <p>• Your selected prefix will be remembered for next time</p>
-              <p>• Maximum 30 labels per generation (for optimal performance)</p>
+              <p>• Maximum 10 labels per generation (for optimal performance)</p>
               <p>• For larger quantities, generate multiple batches</p>
             </div>
           </div>

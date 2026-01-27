@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
 import {
   Dialog,
   DialogContent,
@@ -16,19 +15,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { 
   Calendar, 
   Clock, 
-  Users, 
-  MapPin, 
   Video,
   FileText,
   User,
   Phone,
   Mail,
   CheckCircle,
-  XCircle,
-  AlertCircle,
-  Edit,
-  Trash2,
-  ExternalLink
+  XCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -38,8 +31,6 @@ interface Meeting {
   title: string;
   description?: string;
   startTime: string;
-  endTime: string;
-  location?: string;
   meetingType: string;
   status: string;
   priority: string;
@@ -76,18 +67,6 @@ interface Meeting {
       email: string;
     };
   }>;
-  tasks: Array<{
-    id: string;
-    title: string;
-    description?: string;
-    status: string;
-    dueDate?: string;
-    assignee?: {
-      id: string;
-      name: string;
-      employeeId: string;
-    };
-  }>;
 }
 
 interface MeetingDetailsDialogProps {
@@ -103,7 +82,6 @@ export default function MeetingDetailsDialog({
   onOpenChange,
   onMeetingUpdated
 }: MeetingDetailsDialogProps) {
-  const { data: session } = useSession();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
@@ -117,10 +95,8 @@ export default function MeetingDetailsDialog({
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       SCHEDULED: { color: "bg-blue-100 text-blue-800", label: "Scheduled", icon: Clock },
-      IN_PROGRESS: { color: "bg-green-100 text-green-800", label: "In Progress", icon: CheckCircle },
       COMPLETED: { color: "bg-gray-100 text-gray-800", label: "Completed", icon: CheckCircle },
       CANCELLED: { color: "bg-red-100 text-red-800", label: "Cancelled", icon: XCircle },
-      POSTPONED: { color: "bg-yellow-100 text-yellow-800", label: "Postponed", icon: AlertCircle }
     };
     
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.SCHEDULED;
@@ -172,18 +148,6 @@ export default function MeetingDetailsDialog({
     return <Badge className={config.color}>{config.label}</Badge>;
   };
 
-  const getTaskStatusBadge = (status: string) => {
-    const statusConfig = {
-      PENDING: { color: "bg-gray-100 text-gray-800", label: "Pending" },
-      IN_PROGRESS: { color: "bg-blue-100 text-blue-800", label: "In Progress" },
-      COMPLETED: { color: "bg-green-100 text-green-800", label: "Completed" },
-      CANCELLED: { color: "bg-red-100 text-red-800", label: "Cancelled" }
-    };
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.PENDING;
-    return <Badge className={config.color}>{config.label}</Badge>;
-  };
-
   const handleUpdateMeetingStatus = async (newStatus: string) => {
     setLoading(true);
     try {
@@ -218,41 +182,6 @@ export default function MeetingDetailsDialog({
     }
   };
 
-  const handleDeleteMeeting = async () => {
-    if (!confirm('Are you sure you want to delete this meeting?')) return;
-
-    setLoading(true);
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/meetings/${meeting.id}`, {
-        method: 'DELETE'
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast({
-          title: "Success",
-          description: "Meeting deleted successfully"
-        });
-        onMeetingUpdated();
-        onOpenChange(false);
-      } else {
-        throw new Error(result.error || 'Failed to delete meeting');
-      }
-    } catch (error) {
-      console.error('Error deleting meeting:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete meeting",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const isOrganizer = session?.user && (session.user as any).id === getOrganizer(meeting)?.id;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -278,7 +207,6 @@ export default function MeetingDetailsDialog({
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="attendees">Attendees ({meeting.attendees.length})</TabsTrigger>
-            <TabsTrigger value="tasks">Tasks ({meeting.tasks.length})</TabsTrigger>
             <TabsTrigger value="actions">Actions</TabsTrigger>
           </TabsList>
 
@@ -298,17 +226,10 @@ export default function MeetingDetailsDialog({
                         {format(new Date(meeting.startTime), 'EEEE, MMMM d, yyyy')}
                       </p>
                       <p className="text-sm text-gray-600">
-                        {format(new Date(meeting.startTime), 'h:mm a')} - {format(new Date(meeting.endTime), 'h:mm a')}
+                        {format(new Date(meeting.startTime), 'h:mm a')}
                       </p>
                     </div>
                   </div>
-
-                  {meeting.location && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-gray-500" />
-                      <span>{meeting.location}</span>
-                    </div>
-                  )}
 
                   {meeting.meetingLink && (
                     <div className="flex items-center gap-2">
@@ -346,9 +267,9 @@ export default function MeetingDetailsDialog({
                       <div>
                         <p className="font-medium">{getOrganizer(meeting)?.name}</p>
                         <p className="text-sm text-gray-600">
-                          {getOrganizer(meeting) && 'adminId' in getOrganizer(meeting)! 
-                            ? (getOrganizer(meeting) as any).adminId 
-                            : (getOrganizer(meeting) as any).employeeId}
+                          {'adminId' in getOrganizer(meeting)! 
+                            ? (getOrganizer(meeting) as { adminId: string }).adminId 
+                            : (getOrganizer(meeting) as { employeeId: string }).employeeId}
                         </p>
                         <p className="text-sm text-gray-600">{getOrganizer(meeting)?.email}</p>
                       </div>
@@ -449,47 +370,6 @@ export default function MeetingDetailsDialog({
             </Card>
           </TabsContent>
 
-          {/* Tasks Tab */}
-          <TabsContent value="tasks" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Meeting Tasks</CardTitle>
-                <CardDescription>
-                  Action items and follow-ups from this meeting
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {meeting.tasks.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">No tasks created</p>
-                ) : (
-                  <div className="space-y-3">
-                    {Array.isArray(meeting.tasks) && meeting.tasks.map((task) => (
-                      <div key={task.id} className="p-3 border rounded-lg">
-                        <div className="flex items-start justify-between mb-2">
-                          <h4 className="font-medium">{task.title}</h4>
-                          {getTaskStatusBadge(task.status)}
-                        </div>
-                        
-                        {task.description && (
-                          <p className="text-sm text-gray-600 mb-2">{task.description}</p>
-                        )}
-                        
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                          {task.assignee && (
-                            <span>Assigned to: {task.assignee.name}</span>
-                          )}
-                          {task.dueDate && (
-                            <span>Due: {format(new Date(task.dueDate), 'MMM d, yyyy')}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           {/* Actions Tab */}
           <TabsContent value="actions" className="space-y-4">
             <Card>
@@ -504,7 +384,7 @@ export default function MeetingDetailsDialog({
                 <div>
                   <p className="font-medium mb-3">Update Status</p>
                   <div className="flex gap-2 flex-wrap">
-                    {['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'POSTPONED'].map((status) => (
+                    {['SCHEDULED', 'COMPLETED', 'CANCELLED'].map((status) => (
                       <Button
                         key={status}
                         variant={meeting.status === status ? "default" : "outline"}
@@ -537,48 +417,14 @@ export default function MeetingDetailsDialog({
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        let calendlyUrl = process.env.NEXT_PUBLIC_CALENDLY_URL || 'https://calendly.com/your-calendly-username';
-                        
-                        // Add meeting details for rescheduling
-                        if (meeting.customer) {
-                          const params = new URLSearchParams({
-                            name: meeting.customer.name,
-                            email: meeting.customer.email || '',
-                            a1: `Reschedule: ${meeting.title}`,
-                            a2: meeting.customer.phone
-                          });
-                          calendlyUrl += `?${params.toString()}`;
-                        } else {
-                          const params = new URLSearchParams({
-                            name: `Reschedule: ${meeting.title}`,
-                            a1: 'Internal Meeting Reschedule',
-                            a2: `Original time: ${format(new Date(meeting.startTime), 'MMM d, h:mm a')}`
-                          });
-                          calendlyUrl += `?${params.toString()}`;
-                        }
-                        
-                        window.open(calendlyUrl, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
-                      }}
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Reschedule via Calendly
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
                         const startTime = new Date(meeting.startTime);
-                        const endTime = new Date(meeting.endTime);
                         const event = {
                           title: meeting.title,
                           start: startTime.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z',
-                          end: endTime.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z',
-                          description: meeting.description || '',
-                          location: meeting.location || ''
+                          description: meeting.description || ''
                         };
                         
-                        const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${event.start}/${event.end}&details=${encodeURIComponent(event.description)}&location=${encodeURIComponent(event.location)}`;
+                        const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${event.start}&details=${encodeURIComponent(event.description)}`;
                         window.open(url, '_blank');
                       }}
                     >
@@ -588,33 +434,7 @@ export default function MeetingDetailsDialog({
                   </div>
                 </div>
 
-                {/* Danger Zone */}
-                {isOrganizer && (
-                  <div className="pt-4 border-t">
-                    <p className="font-medium mb-3 text-red-600">Danger Zone</p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 border-red-200 hover:bg-red-50"
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit Meeting
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 border-red-200 hover:bg-red-50"
-                        onClick={handleDeleteMeeting}
-                        disabled={loading}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Meeting
-                      </Button>
-                    </div>
-                  </div>
-                )}
+
               </CardContent>
             </Card>
           </TabsContent>

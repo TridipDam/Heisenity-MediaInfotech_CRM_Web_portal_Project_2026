@@ -5,8 +5,6 @@ export interface CreateMeetingData {
   title: string;
   description?: string;
   startTime: Date;
-  endTime: Date;
-  location?: string;
   meetingType: MeetingType;
   priority?: MeetingPriority;
   organizerAdminId?: string;
@@ -21,8 +19,6 @@ export interface UpdateMeetingData {
   title?: string;
   description?: string;
   startTime?: Date;
-  endTime?: Date;
-  location?: string;
   meetingType?: MeetingType;
   priority?: MeetingPriority;
   status?: MeetingStatus;
@@ -40,7 +36,6 @@ export interface MeetingFilters {
   status?: MeetingStatus;
   meetingType?: MeetingType;
   startDate?: Date;
-  endDate?: Date;
   calendly?: boolean;
 }
 
@@ -96,17 +91,6 @@ export const createMeeting = async (data: CreateMeetingData) => {
           }
         }
       },
-      tasks: {
-        include: {
-          assignee: {
-            select: {
-              id: true,
-              name: true,
-              employeeId: true
-            }
-          }
-        }
-      }
     }
   });
 
@@ -151,17 +135,6 @@ export const getMeetingById = async (id: string) => {
               name: true,
               employeeId: true,
               email: true
-            }
-          }
-        }
-      },
-      tasks: {
-        include: {
-          assignee: {
-            select: {
-              id: true,
-              name: true,
-              employeeId: true
             }
           }
         }
@@ -217,14 +190,8 @@ export const getMeetings = async (
     where.meetingType = filters.meetingType;
   }
 
-  if (filters.startDate || filters.endDate) {
-    where.startTime = {};
-    if (filters.startDate) {
-      where.startTime.gte = filters.startDate;
-    }
-    if (filters.endDate) {
-      where.startTime.lte = filters.endDate;
-    }
+  if (filters.startDate) {
+    where.startTime.gte = filters.startDate;
   }
 
   const [meetings, total] = await Promise.all([
@@ -267,17 +234,6 @@ export const getMeetings = async (
                 name: true,
                 employeeId: true,
                 email: true
-              }
-            }
-          }
-        },
-        tasks: {
-          include: {
-            assignee: {
-              select: {
-                id: true,
-                name: true,
-                employeeId: true
               }
             }
           }
@@ -338,17 +294,6 @@ export const updateMeeting = async (id: string, data: UpdateMeetingData) => {
               name: true,
               employeeId: true,
               email: true
-            }
-          }
-        }
-      },
-      tasks: {
-        include: {
-          assignee: {
-            select: {
-              id: true,
-              name: true,
-              employeeId: true
             }
           }
         }
@@ -447,7 +392,7 @@ export const getUpcomingMeetings = async (employeeId: string, limit: number = 10
         gte: now
       },
       status: {
-        in: [MeetingStatus.SCHEDULED, MeetingStatus.IN_PROGRESS]
+        in: [MeetingStatus.SCHEDULED]
       }
     },
     take: limit,
@@ -519,7 +464,7 @@ export const getTodaysMeetings = async (employeeId: string) => {
         lt: endOfDay
       },
       status: {
-        in: [MeetingStatus.SCHEDULED, MeetingStatus.IN_PROGRESS]
+        in: [MeetingStatus.SCHEDULED]
       }
     },
     orderBy: { startTime: 'asc' },
@@ -567,60 +512,3 @@ export const getTodaysMeetings = async (employeeId: string) => {
   return meetings;
 };
 
-// Create meeting task
-export const createMeetingTask = async (
-  meetingId: string,
-  title: string,
-  description?: string,
-  assigneeId?: string,
-  dueDate?: Date
-) => {
-  const task = await prisma.meetingTask.create({
-    data: {
-      meetingId,
-      title,
-      description,
-      assigneeId,
-      dueDate
-    },
-    include: {
-      assignee: {
-        select: {
-          id: true,
-          name: true,
-          employeeId: true
-        }
-      }
-    }
-  });
-
-  return task;
-};
-
-// Update meeting task
-export const updateMeetingTask = async (
-  taskId: string,
-  data: {
-    title?: string;
-    description?: string;
-    assigneeId?: string;
-    dueDate?: Date;
-    status?: any;
-  }
-) => {
-  const task = await prisma.meetingTask.update({
-    where: { id: taskId },
-    data,
-    include: {
-      assignee: {
-        select: {
-          id: true,
-          name: true,
-          employeeId: true
-        }
-      }
-    }
-  });
-
-  return task;
-};

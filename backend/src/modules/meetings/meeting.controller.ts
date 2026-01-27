@@ -10,8 +10,6 @@ import {
   updateAttendeeResponse,
   getUpcomingMeetings,
   getTodaysMeetings,
-  createMeetingTask,
-  updateMeetingTask,
   CreateMeetingData,
   UpdateMeetingData,
   MeetingFilters
@@ -25,8 +23,6 @@ export const createMeetingController = async (req: Request, res: Response) => {
       title,
       description,
       startTime,
-      endTime,
-      location,
       meetingType,
       priority,
       organizerId,
@@ -37,7 +33,7 @@ export const createMeetingController = async (req: Request, res: Response) => {
     } = req.body;
 
     // Validate required fields
-    if (!title || !startTime || !endTime || !organizerId) {
+    if (!title || !startTime || !organizerId) {
       return res.status(400).json({
         success: false,
         error: 'Title, start time, end time, and organizer ID are required'
@@ -46,14 +42,6 @@ export const createMeetingController = async (req: Request, res: Response) => {
 
     // Validate meeting times
     const start = new Date(startTime);
-    const end = new Date(endTime);
-
-    if (start >= end) {
-      return res.status(400).json({
-        success: false,
-        error: 'End time must be after start time'
-      });
-    }
 
     if (start < new Date()) {
       return res.status(400).json({
@@ -71,8 +59,6 @@ export const createMeetingController = async (req: Request, res: Response) => {
       title,
       description,
       startTime: start,
-      endTime: end,
-      location,
       meetingType: meetingType || MeetingType.INTERNAL,
       priority: priority || MeetingPriority.MEDIUM,
       organizerAdminId: userType === 'ADMIN' ? organizerId : undefined,
@@ -191,19 +177,6 @@ export const updateMeetingController = async (req: Request, res: Response) => {
         success: false,
         error: 'Meeting ID is required'
       });
-    }
-
-    // Validate meeting times if provided
-    if (updateData.startTime && updateData.endTime) {
-      const start = new Date(updateData.startTime);
-      const end = new Date(updateData.endTime);
-
-      if (start >= end) {
-        return res.status(400).json({
-          success: false,
-          error: 'End time must be after start time'
-        });
-      }
     }
 
     const meeting = await updateMeeting(id, updateData);
@@ -393,74 +366,6 @@ export const getTodaysMeetingsController = async (req: Request, res: Response) =
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to get today\'s meetings'
-    });
-  }
-};
-
-// Create meeting task
-export const createMeetingTaskController = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { title, description, assigneeId, dueDate } = req.body;
-
-    if (!id || !title) {
-      return res.status(400).json({
-        success: false,
-        error: 'Meeting ID and task title are required'
-      });
-    }
-
-    const task = await createMeetingTask(
-      id,
-      title,
-      description,
-      assigneeId,
-      dueDate ? new Date(dueDate) : undefined
-    );
-
-    return res.status(201).json({
-      success: true,
-      message: 'Meeting task created successfully',
-      data: task
-    });
-  } catch (error) {
-    console.error('Error creating meeting task:', error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to create meeting task'
-    });
-  }
-};
-
-// Update meeting task
-export const updateMeetingTaskController = async (req: Request, res: Response) => {
-  try {
-    const { taskId } = req.params;
-    const updateData = req.body;
-
-    if (!taskId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Task ID is required'
-      });
-    }
-
-    if (updateData.dueDate) {
-      updateData.dueDate = new Date(updateData.dueDate);
-    }
-
-    const task = await updateMeetingTask(taskId, updateData);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Meeting task updated successfully',
-      data: task
-    });
-  } catch (error) {
-    console.error('Error updating meeting task:', error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to update meeting task'
     });
   }
 };
