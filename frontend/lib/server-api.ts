@@ -1979,7 +1979,14 @@ async function getSessionToken(): Promise<string | null> {
   try {
     const { getSession } = await import('next-auth/react')
     const session = await getSession()
-    return (session?.user as any)?.sessionToken || null
+    const token = (session?.user as any)?.sessionToken
+    
+    if (!token) {
+      console.warn('No session token found in session')
+      return null
+    }
+    
+    return token
   } catch (error) {
     console.error('Error getting session token:', error)
     return null
@@ -2374,9 +2381,15 @@ export async function getAllTickets(params?: {
   category?: TicketCategory
   search?: string
   limit?: number
+  token?: string
 }): Promise<GetTicketsResponse> {
   try {
-    const token = await getSessionToken()
+    let token = params?.token
+    
+    if (!token) {
+      token = await getSessionToken()
+    }
+    
     if (!token) {
       return {
         success: false,

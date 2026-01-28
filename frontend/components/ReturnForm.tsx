@@ -59,6 +59,7 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
   const { toast } = useToast();
   
   const [checkouts, setCheckouts] = React.useState<CheckoutItem[]>([]);
+  // don't prefill with zeros — treat a key being present as "selected for return"
   const [returnQuantities, setReturnQuantities] = React.useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = React.useState(false);
   const [isReturning, setIsReturning] = React.useState(false);
@@ -81,12 +82,9 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
       
       if (response.success && response.data) {
         setCheckouts(response.data.checkouts);
-        // Initialize return quantities to 0
-        const initialQuantities: Record<string, number> = {};
-        response.data.checkouts.forEach(checkout => {
-          initialQuantities[checkout.id] = 0;
-        });
-        setReturnQuantities(initialQuantities);
+        // DO NOT initialize returnQuantities to 0 here.
+        // We want staff to actively select items (including entering 0) to mark them for return.
+        setReturnQuantities({});
       } else {
         throw new Error(response.error || 'Failed to fetch checkouts');
       }
@@ -131,15 +129,15 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
       return;
     }
 
-    // Get items with quantities > 0
-    const itemsToReturn = checkouts.filter(checkout => 
-      (returnQuantities[checkout.id] || 0) > 0
+    // Items selected for return = those where the user interacted with the quantity input
+    const itemsToReturn = checkouts.filter(checkout =>
+      Object.prototype.hasOwnProperty.call(returnQuantities, checkout.id)
     );
 
     if (itemsToReturn.length === 0) {
       toast({
         title: "No Items to Return",
-        description: "Please specify quantities for items you want to return",
+        description: "Please specify quantities (including 0) for items you want to return",
         variant: "destructive"
       });
       return;
@@ -158,17 +156,17 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
         return;
       }
 
-      // Process returns for items with quantities
+      // Process returns for items with quantities (can be 0)
       const returnPromises = itemsToReturn.map(async (checkout) => {
-        const usedQuantity = returnQuantities[checkout.id];
-        const returnToInventory = checkout.barcode.boxQty - usedQuantity;
+        const usedQuantity = returnQuantities[checkout.id] ?? 0;
+        const returnToInventory = Math.max(0, checkout.barcode.boxQty - usedQuantity);
         
         return createInventoryTransaction({
           productId: checkout.barcode.product?.id || '',
           barcodeId: checkout.barcode.id,
           employeeId: currentEmployeeId,
           transactionType: 'RETURN',
-          usedQty: usedQuantity, // What employee actually used
+          usedQty: usedQuantity, // What employee actually used (can be 0)
           remarks: `Used: ${usedQuantity}, Returned to inventory: ${returnToInventory} out of ${checkout.barcode.boxQty} total`
         }, sessionToken);
       });
@@ -178,24 +176,22 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
       const failCount = results.length - successCount;
 
       // Check for authentication errors
-      const authErrors = results.filter(r => r?.error?.includes('token') || r?.message?.includes('token'));
+      const authErrors = results.filter(r => (r?.error && String(r.error).toLowerCase().includes('token')) || (r?.message && String(r.message).toLowerCase().includes('token')));
       if (authErrors.length > 0) {
         toast({
           title: "Session Expired",
           description: "Your session has expired. Please log in again.",
           variant: "destructive"
         });
-        // Optionally trigger logout
-        // signOut();
         return;
       }
 
       if (successCount > 0) {
         const totalUsed = itemsToReturn.reduce((sum, checkout) => 
-          sum + (returnQuantities[checkout.id] || 0), 0
+          sum + (returnQuantities[checkout.id] ?? 0), 0
         );
         const totalReturned = itemsToReturn.reduce((sum, checkout) => 
-          sum + (checkout.barcode.boxQty - (returnQuantities[checkout.id] || 0)), 0
+          sum + Math.max(0, checkout.barcode.boxQty - (returnQuantities[checkout.id] ?? 0)), 0
         );
 
         toast({
@@ -226,8 +222,9 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
     return new Date(dateString).toLocaleString();
   };
 
-  const getTotalReturnQuantity = () => {
-    return Object.values(returnQuantities).reduce((sum, qty) => sum + qty, 0);
+  // Show number of selected items (not sum of used quantities)
+  const getSelectedCount = () => {
+    return Object.keys(returnQuantities).length;
   };
 
   if (!currentEmployeeId) {
@@ -289,7 +286,7 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
                 Refresh
               </Button>
               
-              {getTotalReturnQuantity() > 0 && (
+              {getSelectedCount() > 0 && (
                 <Button
                   onClick={handleReturn}
                   disabled={isReturning}
@@ -324,77 +321,83 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
               <div className="space-y-4">
                 {/* Items List */}
                 <div className="space-y-3">
-                  {checkouts.map((checkout) => (
-                    <Card key={checkout.id} className="p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                        {/* Product Info */}
-                        <div className="md:col-span-2">
-                          <div className="font-medium text-sm">
-                            {checkout.barcode.product?.productName || 'Unknown Product'}
+                  {checkouts.map((checkout) => {
+                    const currentQty = returnQuantities[checkout.id] ?? 0;
+                    return (
+                      <Card key={checkout.id} className="p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                          {/* Product Info */}
+                          <div className="md:col-span-2">
+                            <div className="font-medium text-sm">
+                              {checkout.barcode.product?.productName || 'Unknown Product'}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              SKU: {checkout.barcode.product?.sku || 'N/A'}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Serial: {checkout.barcode.serialNumber}
+                            </div>
+                            <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                              <Clock className="h-3 w-3" />
+                              Checked out: {formatDate(checkout.checkoutTime)}
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            SKU: {checkout.barcode.product?.sku || 'N/A'}
+                          
+                          {/* Available Boxes */}
+                          <div className="text-center">
+                            <Badge variant="secondary" className="text-xs">
+                              {checkout.barcode.boxQty} boxes available
+                            </Badge>
                           </div>
-                          <div className="text-xs text-gray-500">
-                            Serial: {checkout.barcode.serialNumber}
-                          </div>
-                          <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                            <Clock className="h-3 w-3" />
-                            Checked out: {formatDate(checkout.checkoutTime)}
+                          
+                          {/* Used Quantity Input */}
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor={`qty-${checkout.id}`} className="text-xs whitespace-nowrap">
+                              Used:
+                            </Label>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => updateQuantity(checkout.id, (returnQuantities[checkout.id] ?? 0) - 1)}
+                                disabled={(returnQuantities[checkout.id] ?? 0) <= 0}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              
+                              <Input
+                                id={`qty-${checkout.id}`}
+                                type="number"
+                                min={0}
+                                max={checkout.barcode.boxQty}
+                                value={currentQty}
+                                onChange={(e) => {
+                                  const parsed = parseInt(e.target.value, 10);
+                                  updateQuantity(checkout.id, Number.isNaN(parsed) ? 0 : parsed);
+                                }}
+                                className="w-16 h-8 text-center text-sm"
+                                placeholder="0"
+                              />
+                              
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => updateQuantity(checkout.id, (returnQuantities[checkout.id] ?? 0) + 1)}
+                                disabled={(returnQuantities[checkout.id] ?? 0) >= checkout.barcode.boxQty}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Return: {checkout.barcode.boxQty - (currentQty)}
+                            </div>
                           </div>
                         </div>
-                        
-                        {/* Available Boxes */}
-                        <div className="text-center">
-                          <Badge variant="secondary" className="text-xs">
-                            {checkout.barcode.boxQty} boxes available
-                          </Badge>
-                        </div>
-                        
-                        {/* Used Quantity Input */}
-                        <div className="flex items-center gap-2">
-                          <Label htmlFor={`qty-${checkout.id}`} className="text-xs whitespace-nowrap">
-                            Used:
-                          </Label>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => updateQuantity(checkout.id, (returnQuantities[checkout.id] || 0) - 1)}
-                              disabled={!returnQuantities[checkout.id] || returnQuantities[checkout.id] <= 0}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            
-                            <Input
-                              id={`qty-${checkout.id}`}
-                              type="number"
-                              min="0"
-                              max={checkout.barcode.boxQty}
-                              value={returnQuantities[checkout.id] || 0}
-                              onChange={(e) => updateQuantity(checkout.id, parseInt(e.target.value) || 0)}
-                              className="w-16 h-8 text-center text-sm"
-                              placeholder="0"
-                            />
-                            
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                              onClick={() => updateQuantity(checkout.id, (returnQuantities[checkout.id] || 0) + 1)}
-                              disabled={returnQuantities[checkout.id] >= checkout.barcode.boxQty}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Return: {checkout.barcode.boxQty - (returnQuantities[checkout.id] || 0)}
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
             )}

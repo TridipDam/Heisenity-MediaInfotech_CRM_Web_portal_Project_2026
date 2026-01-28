@@ -177,7 +177,10 @@ export function Dashboard() {
         console.log("Session data:", session)
         console.log("Session token:", (session?.user as any)?.sessionToken)
         
-        const response = await getAllTickets({ limit: 3 })
+        const response = await getAllTickets({ 
+          limit: 3,
+          token: (session?.user as any)?.sessionToken
+        })
         
         if (response.success && response.data) {
           setRecentTickets(response.data)

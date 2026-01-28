@@ -80,13 +80,15 @@ export const createProduct = async (req: Request, res: Response) => {
     }
 
     // Create the product
+    const totalUnitsInt = parseInt(totalUnits);
     const product = await prisma.product.create({
       data: {
         sku: finalSku,
         productName,
         description: description || null,
         boxQty: parseInt(boxQty),
-        totalUnits: parseInt(totalUnits),
+        totalUnits: totalUnitsInt,
+        currentUnits: totalUnitsInt,  // Initialize to totalUnits
         reorderThreshold: reorderThreshold ? parseInt(reorderThreshold) : 0,
         unitPrice: unitPrice ? parseFloat(unitPrice) : null,
         supplier: supplier || null,
@@ -724,32 +726,84 @@ export const createInventoryTransaction = async (req: Request, res: Response) =>
     }
 
     // Helper: get active checkout (most recent, not returned)
-    const activeCheckout = await prisma.barcodeCheckout.findFirst({
+    const activeCheckoutForBarcode = await prisma.barcodeCheckout.findFirst({
       where: { barcodeId: barcode.id, isReturned: false },
       orderBy: { id: 'desc' }
     });
 
-    // Decide the desired action before setting any duplicate key
-    // If item is checked out and enough time elapsed, auto-return
-    let desiredAction = transactionType; // either 'CHECKOUT' or 'RETURN' expected
-    if (barcode.status === 'CHECKED_OUT' && activeCheckout) {
-      const checkoutTime = new Date(activeCheckout.checkoutTime).getTime();
-      const elapsedSeconds = Math.floor((Date.now() - checkoutTime) / 1000);
+    let canReturn = false;
+    let returnRemainingSeconds = 0;
 
-      if (elapsedSeconds >= MIN_RETURN_WAIT_SECONDS) {
-        desiredAction = 'RETURN';
+    if (barcode.status === 'CHECKED_OUT' && activeCheckoutForBarcode) {
+      const checkoutDateRaw = activeCheckoutForBarcode.checkoutTime ?? activeCheckoutForBarcode.createdAt;
+      const checkoutTs = new Date(checkoutDateRaw).getTime();
+      if (!isNaN(checkoutTs)) {
+        const elapsedSeconds = Math.floor((Date.now() - checkoutTs) / 1000);
+        if (elapsedSeconds >= MIN_RETURN_WAIT_SECONDS) {
+          canReturn = true;
+        } else {
+          returnRemainingSeconds = Math.max(0, MIN_RETURN_WAIT_SECONDS - elapsedSeconds);
+          canReturn = false;
+        }
       } else {
-        // If client intended RETURN but MIN_RETURN_WAIT not reached, inform client
-        if (transactionType === 'RETURN') {
-          const remaining = MIN_RETURN_WAIT_SECONDS - elapsedSeconds;
+        // conservative: don't allow return if timestamp missing/invalid
+        canReturn = false;
+        returnRemainingSeconds = MIN_RETURN_WAIT_SECONDS;
+      }
+    }
+
+    // Decide the desired action before setting any duplicate key
+    const requestedAction = String(transactionType ?? 'CHECKOUT').toUpperCase();
+    let desiredAction = requestedAction; // final action we will perform: 'CHECKOUT' or 'RETURN'
+
+    // If barcode already checked out, inspect the most recent active checkout
+    if (barcode.status === 'CHECKED_OUT') {
+      if (!activeCheckoutForBarcode) {
+        // Defensive: we cannot determine checkout time -> disallow immediate RETURN requests
+        if (requestedAction === 'RETURN') {
           return res.status(400).json({
             success: false,
             error: 'Return not allowed yet',
-            message: `This item was just checked out. Please wait ${remaining} more seconds before returning.`,
-            remainingSeconds: remaining
+            message: `No active checkout timestamp available for this barcode. Please try again later.`,
+            remainingSeconds: MIN_RETURN_WAIT_SECONDS
           });
         }
-        // Otherwise keep desiredAction as checkout (or as provided)
+        // else: keep desiredAction as requested (likely 'CHECKOUT' or other) — caller will handle any conflicts
+      } else {
+        // pick checkoutTime if present, otherwise fall back to createdAt
+        const checkoutDateRaw = activeCheckoutForBarcode.checkoutTime ?? activeCheckoutForBarcode.createdAt;
+        const checkoutTs = new Date(checkoutDateRaw).getTime();
+
+        // If timestamp is invalid, be conservative and block RETURN requests
+        if (isNaN(checkoutTs)) {
+          if (requestedAction === 'RETURN') {
+            return res.status(400).json({
+              success: false,
+              error: 'Return not allowed yet',
+              message: `Could not determine checkout timestamp. Please try again later.`,
+              remainingSeconds: MIN_RETURN_WAIT_SECONDS
+            });
+          }
+        } else {
+          const elapsedSeconds = Math.floor((Date.now() - checkoutTs) / 1000);
+
+          if (elapsedSeconds >= MIN_RETURN_WAIT_SECONDS) {
+            // Enough time has passed -> treat as RETURN
+            desiredAction = 'RETURN';
+          } else {
+            // Not enough time yet
+            if (requestedAction === 'RETURN') {
+              const remaining = MIN_RETURN_WAIT_SECONDS - elapsedSeconds;
+              return res.status(400).json({
+                success: false,
+                error: 'Return not allowed yet',
+                message: `This item was just checked out. Please wait ${remaining} more seconds before returning.`,
+                remainingSeconds: remaining
+              });
+            }
+            // otherwise keep desiredAction as requested (usually 'CHECKOUT') — caller may handle the fact item is already checked out
+          }
+        }
       }
     }
 
@@ -1184,6 +1238,32 @@ export const lookupBarcode = async (req: Request, res: Response) => {
       });
     }
 
+    // Calculate return eligibility
+    let canReturn = false;
+    let returnRemainingSeconds = 0;
+
+    const activeCheckoutForBarcode = await prisma.barcodeCheckout.findFirst({
+      where: { barcodeId: barcode.id, isReturned: false },
+      orderBy: { id: 'desc' }
+    });
+
+    if (barcode.status === 'CHECKED_OUT' && activeCheckoutForBarcode) {
+      const checkoutDateRaw = activeCheckoutForBarcode.checkoutTime ?? activeCheckoutForBarcode.createdAt;
+      const checkoutTs = new Date(checkoutDateRaw).getTime();
+      if (!isNaN(checkoutTs)) {
+        const elapsedSeconds = Math.floor((Date.now() - checkoutTs) / 1000);
+        if (elapsedSeconds >= MIN_RETURN_WAIT_SECONDS) {
+          canReturn = true;
+        } else {
+          returnRemainingSeconds = Math.max(0, MIN_RETURN_WAIT_SECONDS - elapsedSeconds);
+          canReturn = false;
+        }
+      } else {
+        canReturn = false;
+        returnRemainingSeconds = MIN_RETURN_WAIT_SECONDS;
+      }
+    }
+
     // Convert BigInt to string for JSON serialization
     const responseData = {
       id: barcode.id.toString(), // Add barcode ID for inventory transactions
@@ -1200,7 +1280,9 @@ export const lookupBarcode = async (req: Request, res: Response) => {
       serialNumber: barcode.serialNumber,
       barcodeValue: barcode.barcodeValue,
       status: barcode.status,
-      createdAt: barcode.createdAt.toISOString()
+      createdAt: barcode.createdAt.toISOString(),
+      canReturn,
+      returnRemainingSeconds
     };
 
     console.log('✅ Returning barcode data for:', barcode.product.productName);

@@ -239,12 +239,25 @@ export default function BarcodeScanner({ onScan, onInventoryChange, onScanResult
 
               // treat any 'checked out' status from backend as trigger to show the return form
               const statusStr = String(json.data.status ?? '').trim().toLowerCase();
+              const canReturn = Boolean(json.data?.canReturn);
+              const remaining = Number(json.data?.returnRemainingSeconds ?? 0);
 
-              // Recommended: open return form when barcode is currently CHECKED_OUT
               if (statusStr === 'checked_out') {
-                processingRef.current = true; // pause scanner
-                setShowReturnForm(true);
-                return;
+                if (canReturn) {
+                  processingRef.current = true;
+                  setShowReturnForm(true);
+                  return;
+                } else {
+                  // show a short UI notice (or start a countdown) instead of opening the form
+                  setError(`Return not allowed yet — wait ${remaining}s before returning.`);
+                  setTimeout(() => {
+                    if (mountedRef.current) {
+                      setError(null);
+                      processingRef.current = false;
+                    }
+                  }, 5000);
+                  return;
+                }
               }
 
               // === end updated check ===

@@ -21,23 +21,24 @@ export interface UpdateInventoryPayload {
 
 /**
  * Calculates available units for a product:
- * available = product.totalUnits - SUM(allocation.allocatedUnits)
+ * available = product.currentUnits (live physical stock)
+ * currentUnits is decremented on RETURN/USED transactions
  */
 export async function calculateAvailableUnits(
-  productId: string | number | bigint
+    productId: string | number | bigint
 ): Promise<number> {
-  const pid = BigInt(productId as any);
+    const pid = BigInt(productId as any);
 
-  const product = await prisma.product.findUnique({
-    where: { id: pid },
-    select: { totalUnits: true }
-  });
+    const product = await prisma.product.findUnique({
+        where: { id: pid },
+        select: { currentUnits: true }
+    });
 
-  if (!product) {
-    throw new Error(`Product ${productId} not found`);
-  }
+    if (!product) {
+        throw new Error(`Product ${productId} not found`);
+    }
 
-  return Math.max(0, product.totalUnits);
+    return Math.max(0, product.currentUnits);
 }
 
 
@@ -50,7 +51,7 @@ export async function checkLowStockThreshold(productId: string | number | bigint
 
     const product = await prisma.product.findUnique({
         where: { id: pid },
-        select: { totalUnits: true, reorderThreshold: true }
+        select: { currentUnits: true, reorderThreshold: true }
     });
 
     if (!product) {
@@ -202,9 +203,11 @@ export async function updateProductInventory(payload: UpdateInventoryPayload) {
                 data: {
                     barcodeId,
                     employeeId,
-                    isReturned: false
+                    isReturned: false,
+                    checkoutTime: new Date()
                 }
             });
+
 
             // DON'T update allocation or inventory on CHECKOUT
             // Inventory will be updated only on RETURN based on actual usage
@@ -222,9 +225,9 @@ export async function updateProductInventory(payload: UpdateInventoryPayload) {
                 throw new Error('Barcode not found');
             }
 
-            // Calculate units to return to inventory
+            // Calculate units to decrement from inventory
             // usedQty = what employee actually used
-            // returnToInventory = boxQty - usedQty
+            // We decrement currentUnits by the actual used quantity
             const actualUsedQty = Math.min(usedQty, barcode.boxQty);
 
             // mark barcode AVAILABLE
@@ -245,16 +248,17 @@ export async function updateProductInventory(payload: UpdateInventoryPayload) {
                 }
             });
 
-            // Update product totalUnits based on what's being returned to inventory
+            // Decrement currentUnits (live physical stock) based on actual usage
+            // This reflects what was actually consumed/used
             if (actualUsedQty > 0) {
                 await tx.product.update({
                     where: { id: barcode.productId },
                     data: {
-                        totalUnits: { decrement: actualUsedQty }
+                        currentUnits: { decrement: actualUsedQty }
                     }
                 });
             }
-            // If returnToInventory is 0, it means employee used all items, so no inventory update needed
+            // If actualUsedQty is 0, it means employee didn't use any items, so no inventory decrement needed
         }
 
         // ADJUST handling (optional): you can add additional logic here if needed

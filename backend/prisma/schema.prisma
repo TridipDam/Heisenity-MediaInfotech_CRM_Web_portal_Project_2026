@@ -977,6 +977,7 @@ model Product {
   description      String?
   boxQty           Int      @map("box_qty")
   totalUnits       Int      @map("total_units")
+  currentUnits     Int      @map("current_units")
   reorderThreshold Int      @default(0) @map("reorder_threshold")
   unitPrice        Decimal? @db.Decimal(10, 2) @map("unit_price")
   supplier         String?
@@ -1072,6 +1073,7 @@ model BarcodeCheckout {
   checkoutTime DateTime  @default(now()) @map("checkout_time")
   isReturned   Boolean   @default(false) @map("is_returned")
   returnTime   DateTime? @map("return_time")
+  createdAt    DateTime  @default(now()) @map("created_at")
 
   barcodeId  BigInt
   employeeId String
