@@ -2,7 +2,7 @@ import { prisma } from '../../lib/prisma'
 
 export interface AdminNotification {
   id: string
-  type: 'VEHICLE_UNASSIGNED' | 'TASK_COMPLETED' | 'ATTENDANCE_ALERT' | 'ATTENDANCE_APPROVAL_REQUEST' | 'ATTENDANCE_APPROVED' | 'ATTENDANCE_REJECTED' | 'TICKET_CREATED' | 'TICKET_ASSIGNED'
+  type: 'VEHICLE_UNASSIGNED' | 'TASK_COMPLETED' | 'ATTENDANCE_ALERT' | 'ATTENDANCE_APPROVAL_REQUEST' | 'ATTENDANCE_APPROVED' | 'ATTENDANCE_REJECTED' | 'TICKET_CREATED' | 'TICKET_ASSIGNED' | 'LOW_STOCK'
   title: string
   message: string
   data?: any
@@ -417,6 +417,95 @@ export class NotificationService {
       return {
         success: false,
         error: 'Failed to remove ticket created notifications'
+      }
+    }
+  }
+
+  // Create low stock notification
+  async createLowStockNotification(productId: string, productName: string, currentUnits: number, reorderThreshold: number) {
+    try {
+      const notification = await prisma.adminNotification.create({
+        data: {
+          type: 'LOW_STOCK',
+          title: 'Low Stock Alert',
+          message: `${productName} is running low on stock. Current units: ${currentUnits}, Reorder threshold: ${reorderThreshold}`,
+          data: JSON.stringify({
+            productId,
+            productName,
+            currentUnits,
+            reorderThreshold,
+            alertedAt: new Date().toISOString()
+          }),
+          isRead: false
+        }
+      })
+
+      console.log(`Low stock notification created for product: ${productName} (ID: ${productId})`)
+
+      return {
+        success: true,
+        data: notification,
+        message: 'Low stock notification created'
+      }
+    } catch (error) {
+      console.error('Error creating low stock notification:', error)
+      return {
+        success: false,
+        error: 'Failed to create low stock notification'
+      }
+    }
+  }
+
+  // Check and create low stock notifications for products
+  async checkLowStockProducts() {
+    try {
+      // Get all active products
+      const products = await prisma.product.findMany({
+        where: {
+          isActive: true
+        }
+      })
+
+      // Filter products where currentUnits <= reorderThreshold
+      const lowStockProducts = products.filter(product => {
+        const current = product.currentUnits || 0
+        const threshold = product.reorderThreshold || 0
+        return current <= threshold && threshold > 0
+      })
+
+      if (lowStockProducts.length === 0) {
+        return {
+          success: true,
+          message: 'No low stock products found',
+          count: 0
+        }
+      }
+
+      // Create notifications for each low stock product
+      const notifications: any[] = []
+      for (const product of lowStockProducts) {
+        const notif = await this.createLowStockNotification(
+          product.id.toString(),
+          product.productName,
+          product.currentUnits || 0,
+          product.reorderThreshold || 0
+        )
+        if (notif.success) {
+          notifications.push(notif.data)
+        }
+      }
+
+      return {
+        success: true,
+        message: `Created ${notifications.length} low stock notifications`,
+        count: notifications.length,
+        data: notifications
+      }
+    } catch (error) {
+      console.error('Error checking low stock products:', error)
+      return {
+        success: false,
+        error: 'Failed to check low stock products'
       }
     }
   }

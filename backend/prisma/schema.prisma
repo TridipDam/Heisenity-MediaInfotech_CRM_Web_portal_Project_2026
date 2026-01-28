@@ -791,6 +791,7 @@ enum AdminNotificationType {
   ATTENDANCE_REJECTED
   TICKET_CREATED
   TICKET_ASSIGNED
+  LOW_STOCK
 }
 
 enum LeaveType {

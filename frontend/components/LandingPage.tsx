@@ -340,7 +340,8 @@ export default function LandingPage({ onGetStarted, isLoggedIn = false, userProf
               <MapPin className="h-12 w-12 text-blue-400 mx-auto mb-4" />
               <h3 className="text-xl font-bold mb-2">Visit Us</h3>
               <p className="text-gray-300 mb-4">Our business office</p>
-              <p className="text-blue-400 font-semibold">123 Business Ave</p>
+              <p className="text-blue-400 font-semibold">1/2, SATISH CHAKRABORTY LANE, Bally, Howrah, West
+Bengal, 711201</p>
             </div>
           </div>
           

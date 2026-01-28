@@ -198,7 +198,7 @@ export function StockPage() {
     try {
       setExportLoading(true)
 
-      const exportParams: { quickRange?: string } = {}
+      const exportParams: { quickRange?: 'yesterday' | '15days' | '30days' } = {}
       
       if (quickRange) {
         exportParams.quickRange = quickRange

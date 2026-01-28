@@ -107,7 +107,7 @@ export async function exportProductsToExcel(
 
     // Auto-fit columns
     worksheet.columns.forEach(column => {
-      column.alignment = { horizontal: 'left', vertical: 'center', wrapText: true }
+      column.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true }
     })
 
     res.setHeader(

@@ -83,11 +83,6 @@ function AdminLoginCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="px-8 pb-8">
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-700">
-            <strong>Note:</strong> Admin credentials are provided by the development team.
-          </p>
-        </div>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-2">
             <Label htmlFor="admin-id" className="text-sm font-medium">Admin ID</Label>
@@ -242,40 +237,6 @@ export default function AdminLoginPage({ onGetStarted, isLoggedIn = false, userP
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-16 bg-white/50">
-        <div className="container mx-auto px-6">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">Admin Features</h2>
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <ShieldCheck className="h-6 w-6 text-blue-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">System Management</h3>
-                <p className="text-gray-600 text-sm">Full control over system settings and configurations</p>
-              </div>
-              
-              <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <ShieldCheck className="h-6 w-6 text-green-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">User Management</h3>
-                <p className="text-gray-600 text-sm">Manage staff accounts, permissions, and access levels</p>
-              </div>
-              
-              <div className="text-center p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                  <ShieldCheck className="h-6 w-6 text-purple-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Analytics & Reports</h3>
-                <p className="text-gray-600 text-sm">Access comprehensive reports and system analytics</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Contact Section */}
       <section className="py-16 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
         <div className="container mx-auto px-6">       
@@ -298,7 +259,8 @@ export default function AdminLoginPage({ onGetStarted, isLoggedIn = false, userP
               <MapPin className="h-12 w-12 text-blue-400 mx-auto mb-4" />
               <h3 className="text-xl font-bold mb-2">Visit Us</h3>
               <p className="text-gray-300 mb-4">Our business office</p>
-              <p className="text-blue-400 font-semibold">123 Business Ave</p>
+              <p className="text-blue-400 font-semibold">1/2, SATISH CHAKRABORTY LANE, Bally, Howrah, West
+Bengal, 711201</p>
             </div>
           </div>
         </div>

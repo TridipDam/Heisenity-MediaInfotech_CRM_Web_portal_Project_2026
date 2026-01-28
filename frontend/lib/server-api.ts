@@ -2384,10 +2384,11 @@ export async function getAllTickets(params?: {
   token?: string
 }): Promise<GetTicketsResponse> {
   try {
-    let token = params?.token
+    let token: string | undefined = params?.token ?? undefined
     
     if (!token) {
-      token = await getSessionToken()
+      const sessionToken = await getSessionToken() // returns string | null
+      token = sessionToken ?? undefined
     }
     
     if (!token) {
