@@ -561,7 +561,7 @@ export default function BarcodeScanner({ onScan, onInventoryChange, onScanResult
 
         {/* Scan Result – shown BELOW camera */}
         {result && (
-          <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-4">
+          <div className="m-4 bg-green-50 border border-green-200 rounded-xl p-4">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-semibold text-green-800 flex items-center gap-1">
@@ -586,11 +586,6 @@ export default function BarcodeScanner({ onScan, onInventoryChange, onScanResult
               <div>
                 <p className="text-gray-500 text-xs">Serial No.</p>
                 <p className="font-medium text-gray-900">{result.serialNumber}</p>
-              </div>
-
-              <div>
-                <p className="text-gray-500 text-xs">Box Quantity</p>
-                <p className="font-medium text-gray-900">{result.product.boxQty}</p>
               </div>
             </div>
           </div>

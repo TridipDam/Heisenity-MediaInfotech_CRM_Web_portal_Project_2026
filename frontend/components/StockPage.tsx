@@ -10,6 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
 import BarcodeScanner from "@/components/barcodeScanner/BarcodeScanner"
+import { exportTransactionsToExcel } from "@/lib/server-api"
+import { showToast } from "@/lib/toast-utils"
 import { 
   Search, 
   Filter, 
@@ -25,7 +27,8 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   Clock,
-  User
+  User,
+  Loader2
 } from "lucide-react"
 
 interface InventoryTransaction {
@@ -124,6 +127,7 @@ export function StockPage() {
   })
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const [exportLoading, setExportLoading] = React.useState<boolean>(false)
 
   // Fetch inventory transactions
   const fetchTransactions = React.useCallback(async () => {
@@ -189,6 +193,26 @@ export function StockPage() {
       fetchTransactions()
     }
   }, [fetchTransactions, session])
+
+  const handleExport = async (quickRange?: 'yesterday' | '15days' | '30days') => {
+    try {
+      setExportLoading(true)
+
+      const exportParams: { quickRange?: string } = {}
+      
+      if (quickRange) {
+        exportParams.quickRange = quickRange
+      }
+
+      await exportTransactionsToExcel(exportParams)
+      showToast.success('Export successful')
+    } catch (error) {
+      console.error('Error exporting to Excel:', error)
+      showToast.error('Failed to export to Excel')
+    } finally {
+      setExportLoading(false)
+    }
+  }
 
   // Handle barcode scan
   const handleBarcodeScan = React.useCallback((barcodeValue: string) => {
@@ -281,10 +305,41 @@ export function StockPage() {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
-              <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="border-gray-300 hover:bg-gray-50"
+                    disabled={exportLoading}
+                  >
+                    {exportLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Exporting...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4 mr-2" />
+                        Export
+                      </>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleExport()}>
+                    Current Filter
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('yesterday')}>
+                    Yesterday
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('15days')}>
+                    Last 15 Days
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('30days')}>
+                    Last 30 Days
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
           
@@ -554,21 +609,6 @@ export function StockPage() {
                           {transaction.remarks || '-'}
                         </p>
                       </div>
-                    </TableCell>
-                    <TableCell className="py-4 px-6">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))

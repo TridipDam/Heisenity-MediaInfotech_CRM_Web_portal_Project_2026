@@ -2666,6 +2666,120 @@ export async function getInventoryTransactions(params?: {
   }
 }
 
+export async function exportTransactionsToExcel(params?: {
+  transactionType?: string;
+  employeeId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  quickRange?: 'yesterday' | '15days' | '30days';
+}, token?: string): Promise<void> {
+  try {
+    let authToken: string | undefined = token;
+    
+    // If no token provided, try to get it from session
+    if (!authToken) {
+      authToken = await getSessionToken() || undefined;
+    }
+    
+    if (!authToken) {
+      throw new Error('No authentication token available');
+    }
+
+    const searchParams = new URLSearchParams();
+    if (params?.transactionType) searchParams.append('transactionType', params.transactionType);
+    if (params?.employeeId) searchParams.append('employeeId', params.employeeId);
+    if (params?.dateFrom) searchParams.append('dateFrom', params.dateFrom);
+    if (params?.dateTo) searchParams.append('dateTo', params.dateTo);
+    if (params?.quickRange) searchParams.append('quickRange', params.quickRange);
+
+    const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/inventory/transactions/export/excel${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to export transactions: ${res.status}`);
+    }
+
+    // Get the blob from response
+    const blob = await res.blob();
+    
+    // Create download link
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `transactions-${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Clean up the blob URL
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error) {
+    console.error('Export transactions error:', error);
+    throw error;
+  }
+}
+
+export async function exportProductsToExcel(params?: {
+  status?: string;
+  search?: string;
+  quickRange?: 'yesterday' | '15days' | '30days';
+}, token?: string): Promise<void> {
+  try {
+    let authToken: string | undefined = token;
+    
+    // If no token provided, try to get it from session
+    if (!authToken) {
+      authToken = await getSessionToken() || undefined;
+    }
+    
+    if (!authToken) {
+      throw new Error('No authentication token available');
+    }
+
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.quickRange) searchParams.append('quickRange', params.quickRange);
+
+    const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/products/export/excel${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to export products: ${res.status}`);
+    }
+
+    // Get the blob from response
+    const blob = await res.blob();
+    
+    // Create download link
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `products-${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Clean up the blob URL
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error) {
+    console.error('Export products error:', error);
+    throw error;
+  }
+}
+
 export async function getAvailableUnits(productId: string, sessionToken?: string): Promise<{
   success: boolean;
   data?: {

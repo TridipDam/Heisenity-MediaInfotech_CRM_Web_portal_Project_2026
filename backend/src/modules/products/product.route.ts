@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import { generateLabels, createProduct, getProducts, getProduct, updateProduct, deleteProduct, getBarcodeHistory, getBarcodePrefixes, addBarcodePrefix, lookupBarcode, createInventoryTransaction, getInventoryTransactions } from './product.controller';
+import { exportProductsToExcel } from './product.export';
 import { authenticateToken } from '../../middleware/auth.middleware';
 
 const router = Router();
 
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
+
+// Export route (specific routes first)
+router.get('/export/excel', exportProductsToExcel);
 
 // Barcode prefix management routes (specific routes first)
 router.get('/barcode-prefixes/list', getBarcodePrefixes);

@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useAuthenticatedFetch } from "@/hooks/useAuthenticatedFetch"
 import { useSession } from "next-auth/react"
 import { GenerateLabelsDialog } from "./GenerateLabelsDialog"
-import { getAvailableUnits } from "@/lib/server-api"
+import { getAvailableUnits, exportProductsToExcel } from "@/lib/server-api"
 import { 
   Search, 
   Filter, 
@@ -89,6 +89,7 @@ export function ProductManagement() {
   const [editingProduct, setEditingProduct] = React.useState<Product | null>(null)
   const [isLoading, setIsLoading] = React.useState(false)
   const [isLoadingProducts, setIsLoadingProducts] = React.useState(true)
+  const [isExporting, setIsExporting] = React.useState(false)
   const [isLabelDialogOpen, setIsLabelDialogOpen] = React.useState(false)
   const [selectedProductForLabels, setSelectedProductForLabels] = React.useState<Product | null>(null)
   
@@ -498,6 +499,37 @@ export function ProductManagement() {
     setIsLabelDialogOpen(true)
   }
 
+  const handleExport = async (status?: string, quickRange?: 'yesterday' | '15days' | '30days') => {
+    try {
+      setIsExporting(true)
+
+      const exportParams: { status?: string; quickRange?: 'yesterday' | '15days' | '30days' } = {}
+      
+      if (status && status !== 'all') {
+        exportParams.status = status
+      }
+
+      if (quickRange) {
+        exportParams.quickRange = quickRange
+      }
+
+      await exportProductsToExcel(exportParams)
+      toast({
+        title: "Success",
+        description: "Products exported successfully"
+      })
+    } catch (error) {
+      console.error('Error exporting products:', error)
+      toast({
+        title: "Error",
+        description: "Failed to export products",
+        variant: "destructive"
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   if (isLoadingProducts) {
     return (
       <div className="min-h-screen bg-gray-50/30 flex items-center justify-center">
@@ -548,10 +580,25 @@ export function ProductManagement() {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
-              <Button variant="outline" className="border-gray-300 hover:bg-gray-50">
-                <Download className="h-4 w-4 mr-2" />
-                Export Products
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="border-gray-300 hover:bg-gray-50" disabled={isExporting}>
+                    <Download className="h-4 w-4 mr-2" />
+                    {isExporting ? 'Exporting...' : 'Export Products'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => handleExport(undefined, 'yesterday')}>
+                    Yesterday
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport(undefined, '15days')}>
+                    Last 15 Days
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport(undefined, '30days')}>
+                    Last 30 Days
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Dialog open={isAddProductOpen} onOpenChange={(open) => {
                 setIsAddProductOpen(open)
                 if (!open) resetForm()

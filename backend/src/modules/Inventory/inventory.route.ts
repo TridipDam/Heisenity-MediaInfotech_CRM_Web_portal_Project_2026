@@ -9,6 +9,7 @@ import {
   getInventoryAudit,
   getEmployeeCheckouts
 } from './inventory.controller';
+import { exportTransactionsToExcel } from './inventory.export';
 import { authenticateToken } from '../../middleware/auth.middleware';
 
 const router = Router();
@@ -19,6 +20,7 @@ router.use(authenticateToken);
 // Inventory transaction routes
 router.post('/transactions', createInventoryTransaction);
 router.get('/transactions', getInventoryTransactions);
+router.get('/transactions/export/excel', exportTransactionsToExcel);
 
 // Available units route
 router.get('/available/:productId', getAvailableUnits);
