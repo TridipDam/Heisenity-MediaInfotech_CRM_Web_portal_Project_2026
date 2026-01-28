@@ -263,7 +263,6 @@ export function StockPage() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <h1 className="text-3xl font-bold text-gray-900">Inventory Transactions</h1>
-              <p className="text-gray-600">Track all barcode scanning and inventory movements</p>
             </div>
             <div className="flex items-center gap-3">
               <BarcodeScanner 
@@ -432,7 +431,6 @@ export function StockPage() {
                     <DropdownMenuItem onClick={() => setSelectedTransactionType("all")}>All Types</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setSelectedTransactionType("CHECKOUT")}>Checkout</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setSelectedTransactionType("RETURN")}>Return</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setSelectedTransactionType("ADJUST")}>Adjust</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <DropdownMenu>
@@ -517,7 +515,7 @@ export function StockPage() {
                         {transaction.checkoutQty > 0 && (
                           <div className="flex items-center gap-1 text-blue-600">
                             <ArrowUpCircle className="h-3 w-3" />
-                            <span className="text-sm font-medium">{transaction.checkoutQty}</span>
+                            <span className="text-sm font-medium">{transaction.checkoutQty * transaction.barcode.boxQty}</span>
                           </div>
                         )}
                         {transaction.returnedQty > 0 && (

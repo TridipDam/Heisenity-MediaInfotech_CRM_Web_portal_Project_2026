@@ -8,6 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   Clock,
   MapPin,
   User,
@@ -17,7 +23,11 @@ import {
   FileText,
   Car,
   Upload,
-  QrCode
+  QrCode,
+  History,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  AlertTriangle
 } from "lucide-react"
 import { EmployeeSelfAttendance } from "./EmployeeSelfAttendance"
 import { LeaveApplicationForm } from "./LeaveApplicationForm"
@@ -71,6 +81,9 @@ export function StaffPortal() {
   const [pendingSupportRequests, setPendingSupportRequests] = useState(0)
   const [allowedFeatures, setAllowedFeatures] = useState<StaffPortalFeature[]>([])
   const [lastScannedProduct, setLastScannedProduct] = useState<string | null>(null)
+  const [showTransactionHistory, setShowTransactionHistory] = useState(false)
+  const [transactionHistory, setTransactionHistory] = useState<any[]>([])
+  const [loadingTransactions, setLoadingTransactions] = useState(false)
 
   useEffect(() => {
     if (status === "loading") return
@@ -300,6 +313,94 @@ export function StaffPortal() {
     setTimeout(() => setLastScannedProduct(null), 5000)
   }
 
+  const fetchTransactionHistory = async () => {
+    try {
+      setLoadingTransactions(true)
+      setTransactionHistory([])
+
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL
+      if (!backendUrl) throw new Error('Backend URL not configured')
+
+      const sessionToken =
+        (session as any)?.user?.sessionToken || (session as any)?.user?.accessToken
+      if (!sessionToken) {
+        console.warn('[Transactions] no session token')
+        setTransactionHistory([])
+        return
+      }
+
+      const res = await fetch(`${backendUrl}/products/transactions?limit=500`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        }
+      })
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        console.error('[Transactions] fetch failed', res.status, text)
+        setTransactionHistory([])
+        return
+      }
+
+      const payload = await res.json().catch(() => null)
+      if (!payload) {
+        setTransactionHistory([])
+        return
+      }
+
+      // normalize similar to StockPage
+      let transactions: any[] = []
+      if (Array.isArray(payload)) transactions = payload
+      else if (payload.success && Array.isArray(payload.data?.transactions)) transactions = payload.data.transactions
+      else if (payload.success && Array.isArray(payload.data)) transactions = payload.data
+      else {
+        // find first array in payload
+        const firstArr = Object.values(payload).find(v => Array.isArray(v)) as any[] | undefined
+        transactions = firstArr ?? []
+      }
+
+      // debug
+      console.debug('[Transactions] total from API:', transactions.length)
+      console.debug('[Transactions] sample:', transactions[0])
+
+      // be flexible when matching employee:
+      const myUuid = (employeeProfile as any)?.id // user DB UUID
+      const myEmployeeCode = (employeeProfile as any)?.employeeId // EMP001 (optional)
+
+      const filtered = transactions.filter((t: any) => {
+        if (!t) return false
+        // top-level t.employeeId may be a UUID or empCode depending on backend
+        if (t.employeeId && (t.employeeId === myUuid || t.employeeId === myEmployeeCode)) return true
+
+        // nested employee object
+        if (t.employee && (t.employee.id === myUuid || t.employee.employeeId === myEmployeeCode)) return true
+
+        // older fields
+        if (t.createdBy && (t.createdBy === myUuid || t.createdBy === myEmployeeCode)) return true
+
+        return false
+      })
+
+      // store everything that passed — don't filter out product/relations here
+      setTransactionHistory(filtered)
+    } catch (err) {
+      console.error('Error fetching transaction history:', err)
+      setTransactionHistory([])
+    } finally {
+      setLoadingTransactions(false)
+    }
+  }
+
+
+
+  const handleOpenTransactionHistory = () => {
+    console.log('[TransactionHistory] Opening dialog for employee:', employeeProfile?.id, employeeProfile?.employeeId)
+    setShowTransactionHistory(true)
+    fetchTransactionHistory()
+  }
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -354,7 +455,7 @@ export function StaffPortal() {
           <span className="text-sm font-medium">Product {lastScannedProduct} scanned!</span>
         </div>
       )}
-      
+
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -366,7 +467,7 @@ export function StaffPortal() {
               {/* Barcode Scanner - Only for Field Engineers */}
               {employeeProfile?.role === 'FIELD_ENGINEER' && (
                 <div className="flex items-center justify-center">
-                  <BarcodeScanner 
+                  <BarcodeScanner
                     onScan={handleProductScan}
                   />
                 </div>
@@ -391,8 +492,8 @@ export function StaffPortal() {
               <button
                 onClick={() => setActiveTab('attendance')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'attendance'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
                 <MapPin className="h-4 w-4 inline mr-2" />
@@ -402,8 +503,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('dashboard')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'dashboard'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <FileText className="h-4 w-4 inline mr-2" />
@@ -414,8 +515,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('project')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'project'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <FileText className="h-4 w-4 inline mr-2" />
@@ -426,8 +527,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('task_management')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'task_management'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <FileText className="h-4 w-4 inline mr-2" />
@@ -438,8 +539,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('tasks')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'tasks'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <FileText className="h-4 w-4 inline mr-2" />
@@ -450,8 +551,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('tickets')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'tickets'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <FileText className="h-4 w-4 inline mr-2" />
@@ -461,8 +562,8 @@ export function StaffPortal() {
               <button
                 onClick={() => setActiveTab('leave')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'leave'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
                 <FileText className="h-4 w-4 inline mr-2" />
@@ -471,8 +572,8 @@ export function StaffPortal() {
               <button
                 onClick={() => setActiveTab('documents')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'documents'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
                 <FileText className="h-4 w-4 inline mr-2" />
@@ -482,8 +583,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('vehicle')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'vehicle'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <Car className="h-4 w-4 inline mr-2" />
@@ -496,8 +597,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('customers')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'customers'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <User className="h-4 w-4 inline mr-2" />
@@ -508,8 +609,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('teams')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'teams'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <User className="h-4 w-4 inline mr-2" />
@@ -520,8 +621,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('tenders')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'tenders'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <FileText className="h-4 w-4 inline mr-2" />
@@ -532,8 +633,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('stock')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'stock'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <FileText className="h-4 w-4 inline mr-2" />
@@ -544,8 +645,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('leave_management')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'leave_management'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <FileText className="h-4 w-4 inline mr-2" />
@@ -556,8 +657,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('field_engineer_attendance')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'field_engineer_attendance'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <Clock className="h-4 w-4 inline mr-2" />
@@ -568,8 +669,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('inoffice_attendance')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'inoffice_attendance'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <Clock className="h-4 w-4 inline mr-2" />
@@ -580,8 +681,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('customer_support_requests')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'customer_support_requests'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <FileText className="h-4 w-4 inline mr-2" />
@@ -592,8 +693,8 @@ export function StaffPortal() {
                 <button
                   onClick={() => setActiveTab('staff_feature_access')}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'staff_feature_access'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                 >
                   <User className="h-4 w-4 inline mr-2" />
@@ -693,6 +794,14 @@ export function StaffPortal() {
                 )}
               </CardContent>
             </Card>
+
+            <Button
+              onClick={handleOpenTransactionHistory}
+              className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2"
+            >
+              <History className="h-4 w-4" />
+              Transaction History
+            </Button>
 
           </div>
 
@@ -1233,6 +1342,72 @@ export function StaffPortal() {
             )}
           </div>
         </div>
+
+        {/* Transaction History Dialog */}
+        <Dialog open={showTransactionHistory} onOpenChange={setShowTransactionHistory}>
+          <DialogContent className="max-w-4xl max-h-96 overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Transaction History
+              </DialogTitle>
+            </DialogHeader>
+
+            {loadingTransactions ? (
+              <div className="flex justify-center items-center h-40">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : transactionHistory.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No transactions found</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {transactionHistory.map((transaction) => (
+                  <div key={transaction.id} className="border rounded-lg p-3 hover:bg-gray-50">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm">{transaction.product.productName}</p>
+                        <p className="text-xs text-gray-500">SKU: {transaction.product.sku}</p>
+                        <div className="flex gap-4 mt-2">
+                          {transaction.checkoutQty > 0 && (
+                            <div className="flex items-center gap-1 text-blue-600 text-xs">
+                              <ArrowUpCircle className="h-3 w-3" />
+                              <span>Checkout: {transaction.checkoutQty * transaction.barcode.boxQty}</span>
+                            </div>
+                          )}
+                          {transaction.returnedQty > 0 && (
+                            <div className="flex items-center gap-1 text-green-600 text-xs">
+                              <ArrowDownCircle className="h-3 w-3" />
+                              <span>Returned: {transaction.returnedQty}</span>
+                            </div>
+                          )}
+                          {transaction.usedQty > 0 && (
+                            <div className="flex items-center gap-1 text-amber-600 text-xs">
+                              <AlertTriangle className="h-3 w-3" />
+                              <span>Used: {transaction.usedQty}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500">
+                          {new Date(transaction.createdAt).toLocaleDateString('en-IN')}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {new Date(transaction.createdAt).toLocaleTimeString('en-IN', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )

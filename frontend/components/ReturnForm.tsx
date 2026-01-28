@@ -343,13 +343,6 @@ export function ReturnForm({ employeeId, onReturnComplete, isOpen: externalIsOpe
                             </div>
                           </div>
                           
-                          {/* Available Boxes */}
-                          <div className="text-center">
-                            <Badge variant="secondary" className="text-xs">
-                              {checkout.barcode.boxQty} boxes available
-                            </Badge>
-                          </div>
-                          
                           {/* Used Quantity Input */}
                           <div className="flex items-center gap-2">
                             <Label htmlFor={`qty-${checkout.id}`} className="text-xs whitespace-nowrap">

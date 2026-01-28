@@ -539,14 +539,6 @@ export default function BarcodeScanner({ onScan, onInventoryChange, onScanResult
                 </div>
               )}
 
-              {result && (
-                <div className="absolute bottom-4 left-4 right-4 bg-green-500 text-white p-3 rounded-lg">
-                  <p className="font-semibold text-sm">✅ {result.product.productName}</p>
-                  <p className="text-xs opacity-90">SKU: {result.product.sku} | Serial: {result.serialNumber}</p>
-                  <p className="text-xs opacity-90">Box Qty: {result.product.boxQty} | Status: {result.status}</p>
-                </div>
-              )}
-
               {error && (
                 <div className="absolute bottom-4 left-4 right-4 bg-red-500 text-white p-3 rounded-lg">
                   <p className="text-sm">{error}</p>
@@ -563,17 +555,46 @@ export default function BarcodeScanner({ onScan, onInventoryChange, onScanResult
           </div>
 
           <div className="text-xs text-gray-500 text-center space-y-1">
-            <p>Supports most barcode formats including Code 128, EAN, UPC</p>
             <p>Make sure barcode is well-lit and in focus</p>
-            <div className="mt-2 p-2 bg-blue-50 rounded text-blue-700">
-              <p className="font-medium">Your Database Barcodes:</p>
-              <p>BX000423, BX000422, BX000421, BX000420...</p>
-              <p className="text-xs mt-1">
-                Visit <span className="font-mono">/barcode-test</span> to display these barcodes for scanning
-              </p>
-            </div>
           </div>
         </div>
+
+        {/* Scan Result – shown BELOW camera */}
+        {result && (
+          <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-semibold text-green-800 flex items-center gap-1">
+                  ✅ Product Found
+                </p>
+                <h3 className="text-base font-bold text-gray-900 mt-1">
+                  {result.product.productName}
+                </h3>
+              </div>
+
+              <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 capitalize">
+                {result.status.replace('_', ' ')}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3 text-sm">
+              <div>
+                <p className="text-gray-500 text-xs">SKU</p>
+                <p className="font-medium text-gray-900">{result.product.sku}</p>
+              </div>
+
+              <div>
+                <p className="text-gray-500 text-xs">Serial No.</p>
+                <p className="font-medium text-gray-900">{result.serialNumber}</p>
+              </div>
+
+              <div>
+                <p className="text-gray-500 text-xs">Box Quantity</p>
+                <p className="font-medium text-gray-900">{result.product.boxQty}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Render ReturnForm when needed */}
         {showReturnForm && result && (
